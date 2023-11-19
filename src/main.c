@@ -18,11 +18,7 @@ int main(void) {
 	// init memory mapping ? may be required by console/printf
 	// 
 	if (cpuid() == 0){
-        // this should not be called here
-        kernel_entry();
 		printf("core 0 entered main\n");
-
-		sleep_ms(500);
 
 		struct thread_attr atr_1  = {
 			.name = "thread 1",
