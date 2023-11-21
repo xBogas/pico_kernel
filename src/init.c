@@ -6,12 +6,14 @@
 
 extern int main();
 
+typedef void (*entry_point_t)(void);
+
 void kernel_entry(void) {
 	stdio_init_all();
 	while (!stdio_usb_connected())
 		;
 	sleep_ms(500);
-	multicore_launch_core1(main);
+	multicore_launch_core1((entry_point_t)main);
 	printf("exit kernel_entry\n");
 }
 
@@ -69,9 +71,8 @@ void runtime_init(void) {
     extern void (*__init_array_start)(void);
     extern void (*__init_array_end)(void);
 
-    // Call each function in the list.
-    // We have to take the address of the symbols, as __init_array_start *is*
-    // the first function pointer, not the address of it.
+    // Call constructor functions.
+    // For now these are all non essential
     for (void (**p)(void) = &__init_array_start; p < &__init_array_end; ++p) {
         (*p)();
     }
@@ -87,11 +88,16 @@ void runtime_init(void) {
 
 void __attribute__((noreturn)) _exit(int status) {
 	// set LED on
+    printf("reseting with status %d\n", status);
 	reset_usb_boot(0, 0);
 }
 
 void panic(const char *format, ...) {
-	//TODO: print to console
+    printf("PANIC: ");
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
 	_exit(1);
 }
 
