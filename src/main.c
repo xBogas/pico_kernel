@@ -11,12 +11,6 @@ void thread(void* data) {
 }
 
 int main(void) {
-	// enable entry point to start console and launch multicore ?
-	// this entry point can be with attributes "__attribute__((constructor))" or change bootloader
-	// config console + printf -> enable debug
-	// init memory allocation
-	// init memory mapping ? may be required by console/printf
-	// 
 	if (cpuid() == 0){
 		printf("core 0 entered main\n");
 
@@ -37,16 +31,14 @@ int main(void) {
 		printf("new pid %d\n", pid);
 
 		//start_sched();
-        // ready = 1;
-		while (1)
-			;
+		sleep_ms(5000);
 	}
 	else {
 		printf("core 1 entered main\n");
-        // while (ready == 0)
-        //     ;
-		while (1)
-			;
+		while (1){
+			sleep_ms(3000);
+			printf("core 1 running\n");
+		}
 	}
 
 	return 0;
