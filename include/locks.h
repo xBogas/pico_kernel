@@ -6,11 +6,12 @@
 // Spinlock
 struct spinlock
 {
-	uint32_t *lock;
+	// using hw spinlock
+	volatile uint32_t *lock;
 	uint32_t irq;
 
 //#ifdef DEBUG_KERNEL
-	char* name;
+	const char* name;
 	uint32_t cpu;
 //#endif
 };
