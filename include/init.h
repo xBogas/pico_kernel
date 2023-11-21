@@ -1,5 +1,5 @@
-#ifndef W_KERNEL_UTILS_H
-#define W_KERNEL_UTILS_H
+#ifndef W_KERNEL_INIT_H
+#define W_KERNEL_INIT_H
 
 #include <stdint.h>
 #include "pico/stdio.h"
@@ -12,16 +12,10 @@
 #include "hardware/structs/scb.h"
 #include "hardware/regs/resets.h"
 
-static int cpuid() {
+static inline int cpuid() {
 	return sio_hw->cpuid;
 }
 
-// this cannot be constructor
-void /* __attribute__((constructor))  */ kernel_entry(void);
-
-extern char __StackLimit; /* Set by linker.  */
-
-extern uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
-
+void kernel_entry(void);
 
 #endif
