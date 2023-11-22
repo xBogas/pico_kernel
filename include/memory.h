@@ -4,11 +4,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+void k_mem_init(void);
 
-// first address in memory -> validate check linker file
-extern char end[];
-
-void* k_malloc(size_t size);
+void* k_malloc(void);
 
 void k_free(void* ptr);
 
