@@ -8,7 +8,8 @@ extern int main();
 
 typedef void (*entry_point_t)(void);
 
-void kernel_entry(void) {
+void kernel_entry(void)
+{
 	stdio_init_all();
 	while (!stdio_usb_connected())
 		;
@@ -22,7 +23,8 @@ void kernel_entry(void) {
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 
 // entry point
-void runtime_init(void) {
+void runtime_init(void)
+{
 
 	// Reset all peripherals to put system into a known state,
     // - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
