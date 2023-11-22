@@ -33,6 +33,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-Wno-maybe-uninitialized)
 endif()
 
+add_compile_definitions(PICO_HEAP_SIZE=0)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${SRC_ASM_FILES})
 
