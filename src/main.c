@@ -1,35 +1,13 @@
-#include <stdio.h>
-#include <string.h>
-#include "pico/stdlib.h"
-
-#include "scheduler.h"
+#include "stdio.h"
+#include "memory.h"
 #include "init.h"
-#include "hardware/structs/scb.h"
 
-void thread(void* data) {
-	(void)data;
-}
-
-int main(void) {
+int main(void)
+{
 	if (cpuid() == 0){
 		printf("core 0 entered main\n");
-
-		struct thread_attr atr_1  = {
-			.name = "thread 1",
-			.priority = 1
-		};
-
-		int pid = thread_create(thread, NULL, &atr_1);
-		printf("new pid %d\n", pid);
-
-		struct thread_attr atr_2 = {
-			.name = "thread 2",
-			.priority = 1
-		};
-
-		pid = thread_create(thread, NULL, &atr_2);
-		printf("new pid %d\n", pid);
-
+		k_mem_init();
+		
 		//start_sched();
 		sleep_ms(5000);
 	}
