@@ -36,7 +36,7 @@ void* sched_add_thread(struct thread_handle* th)
 		return th;
 	}
 
-	struct scheduler *new = k_malloc(sizeof(struct scheduler));
+	struct scheduler *new = malloc(sizeof(struct scheduler));
 	if (!new) {
 		k_free(th);
 		return NULL;

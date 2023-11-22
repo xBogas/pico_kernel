@@ -21,7 +21,7 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	if (thread_fn == NULL)
 		return 0;
 
-	struct thread_handle *h_thread = k_malloc(sizeof(struct thread_handle));
+	struct thread_handle *h_thread = malloc(sizeof(struct thread_handle));
 	if (!h_thread)
 		return 0;
 
@@ -33,7 +33,7 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	if (attr != NULL) {
 		h_thread->priority = check_prio(attr->priority);
 
-		h_thread->name = k_malloc(strlen(attr->name));
+		h_thread->name = malloc(strlen(attr->name));
 		strcpy(h_thread->name, attr->name);
 
 		if (attr->stack_size > MIN_STACK_SIZE)
@@ -45,7 +45,7 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	}
 
 	// check if stack size is correct -> 32 bit ?
-	h_thread->ptr_stack = k_malloc(stack * sizeof(uint32_t));
+	h_thread->ptr_stack = malloc(stack * sizeof(uint32_t));
 	if (h_thread->ptr_stack == NULL) {
 		k_free(h_thread);
 		return 0;
