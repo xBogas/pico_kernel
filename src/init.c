@@ -2,18 +2,63 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/structs/scb.h"
-
+#include "hardware/structs/mpu.h"
+#include <stdlib.h>
 
 extern int main();
 
 typedef void (*entry_point_t)(void);
+
+void isr_invalid(void)
+{
+    printf("NVIC invalid called\n");
+    for (int i = 0; i < 1000; i++)
+        ;
+    exit(1);
+}
+
+void isr_nmi(void)
+{
+    printf("NVIC NMI called\n");
+    for (int i = 0; i < 1000; i++)
+        ;
+    exit(1);
+}
+
+void isr_hardfault(void)
+{
+    printf("NVIC hardfault called\n");
+    for (int i = 0; i < 1000; i++)
+        ;
+    exit(1);
+}
+
+void setup_mpu(void)
+{
+    __dmb();
+
+    // disable hardfault interrupt
+    irq_set_enabled(3, false);
+    mpu_hw->ctrl = 0;
+
+    // config mpu region
+
+    // reenable hardfault interrupt
+    irq_set_enabled(3, true);
+    __dsb();
+    __isb();
+}
+
 
 void kernel_entry(void)
 {
 	stdio_init_all();
 	while (!stdio_usb_connected())
 		;
-	sleep_ms(500);
+    printf("print is ready\n");
+    sleep_ms(100);
+
+    setup_mpu();
 	multicore_launch_core1((entry_point_t)main);
 	printf("exit kernel_entry\n");
 }
@@ -25,7 +70,6 @@ uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 // entry point
 void runtime_init(void)
 {
-
 	// Reset all peripherals to put system into a known state,
     // - except for QSPI pads and the XIP IO bank, as this is fatal if running from flash
     // - and the PLLs, as this is fatal if clock muxing has not been reset on this boot
@@ -88,13 +132,18 @@ void runtime_init(void)
 
 #include "pico/bootrom.h"
 
-void __attribute__((noreturn)) _exit(int status) {
+void __attribute__((noreturn)) _exit(int status)
+{
 	// set LED on
     printf("reseting with status %d\n", status);
 	reset_usb_boot(0, 0);
+
+    // TODO: reset or usb reset
+    // maybe make decision at compile time
 }
 
-void panic(const char *format, ...) {
+void panic(const char *format, ...)
+{
     printf("PANIC: ");
     va_list args;
     va_start(args, format);
@@ -103,7 +152,8 @@ void panic(const char *format, ...) {
 	_exit(1);
 }
 
-void hard_assertion_failure(void) {
+void hard_assertion_failure(void)
+{
     panic("Hard assert failed");
 }
 
