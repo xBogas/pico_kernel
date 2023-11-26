@@ -4,11 +4,8 @@
 #include "thread.h"
 
 #define ERROR(str)		\
-	while (1)			\
-	{					\
 		printf(str);	\
-		sleep_ms(500);	\
-	}
+		exit(1);
 
 
 // add thread_handle
