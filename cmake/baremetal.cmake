@@ -1,4 +1,4 @@
-if(NOT TRUE_BAREMETAL)
+if(PICO_BARE_METAL)
 	message("Manualling including non-baremetal libraries")
 
 	message("Including common")
@@ -33,6 +33,7 @@ if(NOT TRUE_BAREMETAL)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_stdio_semihosting)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_stdio_uart)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/cmsis)
+	pico_add_subdirectory(${DIR_RP2_COMMON}/hardware_exception)
 	set(PICO_TINYUSB_PATH ${CMAKE_SOURCE_DIR}/lib/pico-sdk/lib/tinyusb)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/tinyusb)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_stdio_usb)
