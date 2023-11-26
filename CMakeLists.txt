@@ -6,6 +6,7 @@ set(PICO_BARE_METAL 1)
 set(PICO_SDK_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/pico-sdk)
 set(PICO_BOARD pico_w)
 set(PICO_PLATFORM rp2040)
+
 # Pull in SDK (must be before project)
 
 include(cmake/pico_sdk_import.cmake)
@@ -45,7 +46,8 @@ target_link_libraries(${PROJECT_NAME}
                         pico_multicore
                         hardware_regs
                         hardware_structs
-                        hardware_resets) # allow custom _start 
+                        hardware_resets
+                        cmsis_core) 
 
 # enable usb output, disable uart output
 set_target_properties(${PROJECT_NAME} PROPERTIES PICO_TARGET_STDIO_USB 1)
