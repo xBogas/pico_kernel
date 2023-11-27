@@ -2,10 +2,12 @@
 #define W_KERNEL_SCHEDULER_H
 
 #include "thread.h"
+#include "terminal.h"
 
 #define ERROR(str)		\
-		printf(str);	\
-		exit(1);
+	{	printk(str);	\
+		exit(1);		\
+	}		
 
 
 // add thread_handle
