@@ -46,11 +46,6 @@ struct mpu_zone {
 
 uint32_t *to_test;
 
-#define MPU_CTRL_ENABLE_MASK 	_u(0x01)
-#define MPU_RASR_ACCESS_POS 	_u(24)
-#define MPU_RASR_SIZE_POS 		_u(1)
-#define MPU_RASR_ENABLE_POS 	_u(0)
-
 #include "RP2040.h"
 
 void setup_mpu(void)
@@ -74,9 +69,9 @@ void setup_mpu(void)
 
 	// region attributes
 	mpu_hw->rbar = zone1.addr;
-	mpu_hw->rasr = 	(uint32_t)zone1.status 	<< MPU_RASR_ACCESS_POS |
-					(uint32_t)zone1.len 	<< MPU_RASR_SIZE_POS   |
-					(uint32_t)1 			<< MPU_RASR_ENABLE_POS;
+	mpu_hw->rasr = 	(uint32_t)zone1.status 	<< MPU_RASR_AP_Pos |
+					(uint32_t)zone1.len 	<< MPU_RASR_SIZE_Pos   |
+					(uint32_t)1 			<< MPU_RASR_ENABLE_Pos;
 
 	ARM_MPU_Enable(0x04);
 	__enable_irq();
