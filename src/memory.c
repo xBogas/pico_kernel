@@ -2,13 +2,14 @@
 #include "locks.h"
 #include "pico/printf.h"
 #include "string.h"
+#include "terminal.h"
 
 #define PAGE_SIZE 128 //256(0x0100) is probably too much for pico 
 
 #define PAGE_ALIGN(x) ((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
 void free_range(void* start, void* end);
-
+void setup_mpu(void);
 
 struct next {
 	struct next* next;
@@ -29,20 +30,70 @@ void k_mem_init(void)
 	init_lock(&k_mem.lock, "mem lock");
 	free_range(end, __StackLimit);
 
-	printf("first block is %p\n", k_mem.free);
-	printf("end is %p\n", end);
+	setup_mpu();
+	printk("mpu setup done\n");
 }
+
+#include "hardware/structs/mpu.h"
+#include "pico/stdlib.h"
+#include "hardware/sync.h"
+
+struct mpu_zone {
+	uint32_t addr;
+	uint32_t len;
+	uint32_t status;
+};
+
+uint32_t *to_test;
+
+#define MPU_CTRL_ENABLE_MASK 	_u(0x01)
+#define MPU_RASR_ACCESS_POS 	_u(24)
+#define MPU_RASR_SIZE_POS 		_u(1)
+#define MPU_RASR_ENABLE_POS 	_u(0)
+
+#include "RP2040.h"
+
+void setup_mpu(void)
+{
+	printk("beggining mpu setup\n");
+
+	__disable_irq();
+	ARM_MPU_Disable();
+
+	uint32_t *ptr = k_malloc();
+	*ptr = 5;
+	to_test = ptr;
+    struct mpu_zone zone1 = {
+		.addr 	= (uint32_t)ptr,
+		.len 	= 0x06, // 128 bytes
+		.status = ARM_MPU_AP_PRO, // no access
+	};
+
+	// zone id
+	mpu_hw->rnr = 0;
+
+	// region attributes
+	mpu_hw->rbar = zone1.addr;
+	mpu_hw->rasr = 	(uint32_t)zone1.status 	<< MPU_RASR_ACCESS_POS |
+					(uint32_t)zone1.len 	<< MPU_RASR_SIZE_POS   |
+					(uint32_t)1 			<< MPU_RASR_ENABLE_POS;
+
+	ARM_MPU_Enable(0x04);
+	__enable_irq();
+
+	printk("test writting ...\n");
+	sleep_ms(100);
+	*to_test = 10;
+}
+
 
 void free_range(void* start, void* end) 
 {
 	char *p;
 	p = (char*)PAGE_ALIGN((uint32_t)end) - PAGE_SIZE;
 
-	printf("kernel heap size: %d\n", (uint32_t)end - (uint32_t)start);
 	for (; p - PAGE_SIZE > (char*)start; p -= PAGE_SIZE)
 		k_free(p);
-
-	printf("will lose %d bytes\n", (uint32_t)p - (uint32_t)start);
 }
 
 void k_free(void* ptr) 
