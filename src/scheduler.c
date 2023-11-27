@@ -65,7 +65,7 @@ void* sched_add_thread(struct thread_handle* th)
 
 void start_sched(void)
 {
-	printf("Starting scheduler\n");
+	printk("Starting scheduler\n");
 	const struct scheduler *iter = &th_list;
 	const struct thread_handle *thread = NULL;
 
@@ -75,12 +75,12 @@ void start_sched(void)
 		if (!thread->thread_fn)
 			ERROR("thread callback NULL");
 
-		printf("running [%s]\n", thread->name);
+		// printf("running [%s]\n", thread->name);
 		thread->thread_fn(thread->data);
 		iter = iter->next;
 		delay(100);
 	}
-	printf("scheduler ended\n");
+	printk("scheduler ended\n");
 }
 
 // check if sched started running 
