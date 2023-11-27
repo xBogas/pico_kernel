@@ -2,70 +2,27 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/structs/scb.h"
-#include "hardware/structs/mpu.h"
 #include <stdlib.h>
+#include "terminal.h"
 
 extern int main();
+void __attribute__((noreturn)) exit(int status);
 
 typedef void (*entry_point_t)(void);
-
-void isr_invalid(void)
-{
-    printf("NVIC invalid called\n");
-    for (int i = 0; i < 1000; i++)
-        ;
-    exit(1);
-}
-
-void isr_nmi(void)
-{
-    printf("NVIC NMI called\n");
-    for (int i = 0; i < 1000; i++)
-        ;
-    exit(1);
-}
-
-void isr_hardfault(void)
-{
-    printf("NVIC hardfault called\n");
-    for (int i = 0; i < 1000; i++)
-        ;
-    exit(1);
-}
-
-void setup_mpu(void)
-{
-    __dmb();
-
-    // disable hardfault interrupt
-    irq_set_enabled(3, false);
-    mpu_hw->ctrl = 0;
-
-    // config mpu region
-
-    // reenable hardfault interrupt
-    irq_set_enabled(3, true);
-    __dsb();
-    __isb();
-}
-
-
-void kernel_entry(void)
-{
-	stdio_init_all();
-	while (!stdio_usb_connected())
-		;
-    printf("print is ready\n");
-    sleep_ms(100);
-
-    setup_mpu();
-	multicore_launch_core1((entry_point_t)main);
-	printf("exit kernel_entry\n");
-}
 
 #include "hardware/regs/resets.h"
 
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
+
+void kernel_entry(void)
+{
+    term_init();
+	while (!term_connected())
+		;
+    sleep_ms(10);
+    printk("kernel is booting\n");
+	multicore_launch_core1((entry_point_t)main);
+}
 
 // entry point
 void runtime_init(void)
@@ -131,15 +88,19 @@ void runtime_init(void)
 #include <stdarg.h>
 
 #include "pico/bootrom.h"
+#include "hardware/watchdog.h"
 
-void __attribute__((noreturn)) _exit(int status)
+void __attribute__((noreturn)) exit(int status)
 {
-	// set LED on
-    printf("reseting with status %d\n", status);
+    char buf[32];
+    sprintf(buf, "reseting with status %d\n", status);
+    printk(buf);
 	reset_usb_boot(0, 0);
 
     // TODO: reset or usb reset
-    // maybe make decision at compile time
+    // maybe make decision at run time
+    watchdog_enable(1000, 1);
+    while(1);
 }
 
 void panic(const char *format, ...)
@@ -149,7 +110,7 @@ void panic(const char *format, ...)
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
-	_exit(1);
+	exit(1);
 }
 
 void hard_assertion_failure(void)
