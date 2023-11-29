@@ -1,9 +1,16 @@
 #include "init.h"
 #include "terminal.h"
 
-#include "hardware/irq.h"
 #include "pico/bootrom.h"
+#include "pico/multicore.h"
+
+// hardware registers
+#include "hardware/resets.h"
+#include "hardware/clocks.h"
+#include "hardware/irq.h"
 #include "hardware/watchdog.h"
+#include "hardware/structs/scb.h"
+#include "hardware/regs/resets.h"
 
 typedef void (*entry_point_t)(void);
 
