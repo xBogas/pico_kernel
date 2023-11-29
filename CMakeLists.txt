@@ -50,8 +50,8 @@ target_link_libraries(${PROJECT_NAME}
                         cmsis_core) 
 
 # enable usb output, disable uart output
-set_target_properties(${PROJECT_NAME} PROPERTIES PICO_TARGET_STDIO_USB 1)
-set_target_properties(${PROJECT_NAME} PROPERTIES PICO_TARGET_STDIO_UART 0)
+pico_enable_stdio_usb(${PROJECT_NAME} 0)
+pico_enable_stdio_uart(${PROJECT_NAME} 1)
 
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${PROJECT_NAME})
