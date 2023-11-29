@@ -1,4 +1,3 @@
-#include "init.h"
 #include "terminal.h"
 
 #include "pico/bootrom.h"
@@ -20,7 +19,7 @@ void __attribute__((noreturn)) exit(int status);
 
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 
-void kernel_entry(void)
+static void kernel_entry(void)
 {
     term_init();
     sleep_ms(10);

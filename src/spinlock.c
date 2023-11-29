@@ -1,6 +1,5 @@
 #include "locks.h"
-#include "init.h"
-#include <stdio.h>
+#include "pico/sync.h"
 
 void init_lock(struct spinlock *lock, const char *name)
 {
