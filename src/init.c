@@ -1,24 +1,21 @@
 #include "init.h"
-#include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/structs/scb.h"
-#include <stdlib.h>
 #include "terminal.h"
+
+#include "hardware/irq.h"
+#include "pico/bootrom.h"
+#include "hardware/watchdog.h"
+
+typedef void (*entry_point_t)(void);
 
 extern int main();
 void __attribute__((noreturn)) exit(int status);
 
-typedef void (*entry_point_t)(void);
-
-#include "hardware/regs/resets.h"
 
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 
 void kernel_entry(void)
 {
     term_init();
-	while (!term_connected())
-		;
     sleep_ms(10);
     printk("kernel is booting\n");
 	multicore_launch_core1((entry_point_t)main);
@@ -83,32 +80,23 @@ void runtime_init(void)
     kernel_entry();
 }
 
-
-// C standard library functions
-#include <stdarg.h>
-
-#include "pico/bootrom.h"
-#include "hardware/watchdog.h"
-
 void __attribute__((noreturn)) exit(int status)
 {
-    char buf[32];
-    sprintf(buf, "reseting with status %d\n", status);
-    printk(buf);
-	reset_usb_boot(0, 0);
+    printk("reseting with status %d\n", status);
 
-    // TODO: reset or usb reset
-    // maybe make decision at run time
+    if (status)
+        reset_usb_boot(0, 0);
+
     watchdog_enable(1000, 1);
     while(1);
 }
 
 void panic(const char *format, ...)
 {
-    printf("PANIC: ");
+    printk("PANIC!: ");
     va_list args;
     va_start(args, format);
-    vprintf(format, args);
+    vprintk(format, args);
     va_end(args);
 	exit(1);
 }
