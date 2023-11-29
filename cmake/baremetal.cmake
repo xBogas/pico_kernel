@@ -92,4 +92,5 @@ if(PICO_BARE_METAL)
 		pico_mirrored_target_link_libraries(pico_runtime INTERFACE pico_standard_link)
 	endif()
 
+	target_link_options(pico_runtime INTERFACE "--specs=nosys.specs" )
 endif()
