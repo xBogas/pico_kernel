@@ -3,7 +3,7 @@
 #include "terminal.h"
 #include <string.h>
 
-#define PAGE_SIZE 256
+#define PAGE_SIZE 1024
 
 #define PAGE_ALIGN(x) ((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
@@ -76,22 +76,41 @@ void *k_malloc(void)
 	return (void *)mem;
 }
 
+// allocate multiple consecutive pages
 static void *k_malloc_pages(size_t pages)
 {
-	struct next *mem = k_malloc();
-	if (!mem)
+	acquire_lock(&k_mem.lock);
+	if (!k_mem.free) {
+		release_lock(&k_mem.lock);
 		return NULL;
-
-	for (size_t i = 1; i < pages; i++) {
-		struct next *last = k_malloc();
-		if (!last) {
-			free_range(mem, mem->next);
-			return NULL;
-		}
-		mem->next = last;
 	}
 
-	return mem;
+	struct next *start 	= k_mem.free;
+	struct next *prev 	= start;
+	struct next *iter 	= start;
+
+	while (iter->next != NULL) {
+		// not aligned restart
+		if ((iter->next - iter) != PAGE_SIZE) {
+			prev = iter;
+			start = iter->next;
+			iter = start;
+			continue;
+		}
+
+		// check if we have enough pages
+		if (iter - start == (pages-1) * PAGE_SIZE) {
+			prev->next = iter->next;
+			release_lock(&k_mem.lock);
+			memset(start, 0, pages * PAGE_SIZE);
+			return start;
+		}
+
+		iter = iter->next;
+	}
+
+	release_lock(&k_mem.lock);
+	return NULL;
 }
 
 // allocate kernel memory
@@ -183,10 +202,6 @@ void *new_mpu_zone(uint8_t access, uint32_t len)
 	mpu_hw->rasr = access << MPU_RASR_AP_Pos |
 				   ARM_MPU_REGION_SIZE_256B << MPU_RASR_SIZE_Pos |
 				   1 << MPU_RASR_ENABLE_Pos;
-
-#if PAGE_SIZE != 256
-#error "MPU region size must be configured"
-#endif
 
 	return zone;
 }
