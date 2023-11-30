@@ -109,7 +109,7 @@ void vprintk(const char *fmt, va_list ap)
 	acquire_lock(&print);
 	while (*fmt != '\0') {
 		if (*fmt != '%') {
-			c_put(*fmt);
+			c_put(*fmt++);
 			continue;
 		}
 
@@ -134,13 +134,14 @@ void vprintk(const char *fmt, va_list ap)
 			c_put(*fmt);
 			break;
 		}
+		fmt++;
 	}
 	release_lock(&print);
 }
 
 static void c_put(char c)
 {
-	if (unlikely(c != '\n')){
+	if (unlikely(c == '\n')){
 		c_write('\r');
 		c_write('\n');
 	}
