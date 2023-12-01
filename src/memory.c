@@ -136,6 +136,55 @@ static void *k_malloc_pages(size_t pages)
 	return NULL;
 }
 
+
+static void *k_malloc_aligned(size_t size, size_t align)
+{
+	acquire_lock(&k_mem.lock);
+	if (!k_mem.free) {
+		release_lock(&k_mem.lock);
+		return NULL;
+	}
+
+	struct next *start 	= k_mem.free;
+	struct next *prev 	= start;
+	struct next *iter 	= start;
+
+alignment:
+	while ((uint32_t)start % align != 0) {
+		prev = start;
+		start = start->next;
+		if (!start) {
+			release_lock(&k_mem.lock);
+			return NULL;
+		}
+	}
+	iter = start;
+
+	while (iter->next != NULL) {
+		// not consecutive pages restart
+		if ((uint32_t)iter->next - (uint32_t)iter != PAGE_SIZE) {
+			prev = iter;
+			start = iter->next;
+			iter = start;
+			goto alignment;
+			return NULL;
+		}
+
+		// check if we have enough pages
+		if (((uint32_t)iter - (uint32_t)start) == (size-1) * PAGE_SIZE) {
+			prev->next = iter->next;
+			release_lock(&k_mem.lock);
+			memset(start, 0, size * PAGE_SIZE);
+			return start;
+		}
+
+		iter = iter->next;
+	}
+
+	release_lock(&k_mem.lock);
+	return NULL;
+}
+
 // allocate kernel memory
 // if failed return null
 // and set errno ERROR CODE
@@ -221,10 +270,11 @@ void *new_mpu_zone(uint8_t access, uint32_t len)
 		len = PAGE_SIZE;
 	}
 
-	void *zone = k_malloc_pages(len / PAGE_SIZE);
-
-	if (!zone)
+	void *zone = k_malloc_aligned(len / PAGE_SIZE, len);
+	if (!zone) {
+		printk("Failed to allocate mpu zone\n");
 		return NULL;
+	}
 
 	struct mpu_data *mpu_zone = &k_mpu[region_id];
 	mpu_zone->addr = (uint32_t)zone;
