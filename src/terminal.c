@@ -77,7 +77,6 @@ void term_init(void)
 }
 
 void vprintk(const char *fmt, va_list ap);
-static void print_ptr(uint32_t *ptr);
 static void print_str(char *str);
 static void print_hex(uint32_t i);
 static void print_int(int i);
@@ -124,7 +123,7 @@ void vprintk(const char *fmt, va_list ap)
 			print_str(va_arg(ap, char *));
 			break;
 		case 'p':
-			print_ptr(va_arg(ap, uint32_t *));
+			print_hex((uint32_t)va_arg(ap, uint32_t *));
 			break;
 		case 'c':
 			c_put(va_arg(ap, int));
@@ -212,11 +211,4 @@ static void print_str(char *str)
 
 	while (*str != '\0')
 		c_put(*str++);
-}
-
-static void print_ptr(uint32_t *ptr)
-{
-	c_put('0');
-	c_put('x');
-	print_hex((uint32_t)ptr);
 }
