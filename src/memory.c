@@ -3,9 +3,10 @@
 #include "terminal.h"
 #include <string.h>
 
-#define PAGE_SIZE 1024
+#define PAGE_SIZE 			1024 // 0x400
 
-#define PAGE_ALIGN(x) ((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define PG_ROUND_UP(x) 		((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define PG_ROUND_DOWN(x)	((x) & ~(PAGE_SIZE - 1))
 
 void free_range(void *start, void *end);
 void setup_mpu(void);
@@ -14,7 +15,7 @@ struct next {
 	struct next *next;
 };
 
-struct {
+static struct {
 	struct spinlock lock;
 	struct next *free;
 } k_mem;
@@ -36,7 +37,10 @@ void k_mem_init(void)
 void free_range(void *start, void *end)
 {
 	char *p;
-	p = (char *)PAGE_ALIGN((uint32_t)end) - PAGE_SIZE;
+	if ((uint32_t)end % PAGE_SIZE == 0)
+		end--;
+	
+	p = (char *)PG_ROUND_DOWN((uint32_t)end);
 
 	for (; p - PAGE_SIZE > (char *)start; p -= PAGE_SIZE)
 		k_free(p);
@@ -46,17 +50,36 @@ void free_range(void *start, void *end)
 
 void k_free(void *ptr)
 {
-	struct next *mem;
-
 	if (((uint32_t)ptr % PAGE_SIZE) != 0 || (char *)ptr < end || (char *)ptr >= __StackLimit)
-		panic("k_free: bad ptr %p\n", ptr);
+		panic("k_free: bad page ptr %p\n", ptr);
+
 
 	memset(ptr, 1, PAGE_SIZE);
-	mem = (struct next *)ptr;
+	struct next *mem = (struct next *)ptr;
+	mem->next = NULL;
 
 	acquire_lock(&k_mem.lock);
-	mem->next = k_mem.free;
-	k_mem.free = mem;
+	if (!k_mem.free) {
+		k_mem.free = mem;
+		release_lock(&k_mem.lock);
+		return;
+	}
+
+	if (mem < k_mem.free) {
+		mem->next = k_mem.free;
+		k_mem.free = mem;
+		release_lock(&k_mem.lock);
+		return;
+	}
+
+	struct next *iter = k_mem.free;
+	while (iter->next != NULL) {
+		if (iter->next > mem)
+			break;				
+		iter = iter->next;
+	}
+	mem->next = iter->next;
+	iter->next = mem;
 	release_lock(&k_mem.lock);
 }
 
@@ -90,7 +113,7 @@ static void *k_malloc_pages(size_t pages)
 	struct next *iter 	= start;
 
 	while (iter->next != NULL) {
-		// not aligned restart
+		// non consecutive pages
 		if ((iter->next - iter) != PAGE_SIZE) {
 			prev = iter;
 			start = iter->next;
@@ -140,11 +163,10 @@ void free(void *ptr)
 #include "hardware/sync.h"
 #include "RP2040.h"
 
-static uint8_t region_id;
-
 struct mpu_data {
-	uint32_t access;
-	uint32_t size;
+	uint32_t addr;		// Region base address
+	uint32_t access;	// Access permissions
+	uint32_t len;		// Region size bytes
 };
 
 // only 8 regions are supported
@@ -160,7 +182,7 @@ void setup_mpu(void)
 	__enable_irq();
 }
 
-int translate_size(uint32_t size)
+uint8_t translate_size(uint32_t size)
 {
 	int valid = 32;
 	for (size_t i = ARM_MPU_REGION_SIZE_32B; i < ARM_MPU_REGION_SIZE_128KB; i++) {
@@ -172,37 +194,44 @@ int translate_size(uint32_t size)
 	return 0;
 }
 
+void update_mpu(uint32_t id, struct mpu_data *zone, uint8_t status)
+{
+	uint8_t size = translate_size(zone->len);
+	mpu_hw->rnr = id;
+	mpu_hw->rbar = (uint32_t)zone->addr;
+	mpu_hw->rasr = 	zone->access	<< MPU_RASR_AP_Pos		|
+					size			<< MPU_RASR_SIZE_Pos	|
+					status			<< MPU_RASR_ENABLE_Pos;
+}
+
 void *new_mpu_zone(uint8_t access, uint32_t len)
 {
-	int size = translate_size(len);
+	static uint8_t region_id = 0;
+	if (region_id == 7)
+		return NULL;
+
+	uint8_t size = translate_size(len);
 	if (!size) {
 		printk("Invalid mpu size %d\n", len);
 		return NULL;
 	}
 
-	if (len < PAGE_SIZE)
-		panic("Requested mpu zone < PAGE_SIZE\n");
+	if (len < PAGE_SIZE) {
+		printk("Requested mpu zone < PAGE_SIZE\n");
+		len = PAGE_SIZE;
+	}
 
 	void *zone = k_malloc_pages(len / PAGE_SIZE);
 
 	if (!zone)
 		return NULL;
 
-	if (region_id == 7)
-		return NULL;
+	struct mpu_data *mpu_zone = &k_mpu[region_id];
+	mpu_zone->addr = (uint32_t)zone;
+	mpu_zone->access = access;
+	mpu_zone->len = len;
 
-	k_mpu[region_id] = (struct mpu_data){
-		.access = access,
-		.size = size
-	};
-
-	// set up the mpu region
-	mpu_hw->rnr = (uint32_t)region_id++;
-	mpu_hw->rbar = (uint32_t)zone;
-	mpu_hw->rasr = access << MPU_RASR_AP_Pos |
-				   ARM_MPU_REGION_SIZE_256B << MPU_RASR_SIZE_Pos |
-				   1 << MPU_RASR_ENABLE_Pos;
-
+	update_mpu(region_id++, mpu_zone, 1);
 	return zone;
 }
 
