@@ -1,12 +1,15 @@
 #include "memory.h"
 #include "locks.h"
 #include "terminal.h"
+#include "kernel.h"
 #include <string.h>
 
 #define PAGE_SIZE 			1024 // 0x400
 
 #define PG_ROUND_UP(x) 		((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #define PG_ROUND_DOWN(x)	((x) & ~(PAGE_SIZE - 1))
+
+#define N_PAGES(x)			PG_ROUND_UP(x) / PAGE_SIZE
 
 void free_range(void *start, void *end);
 void setup_mpu(void);
@@ -136,8 +139,10 @@ static void *k_malloc_pages(size_t pages)
 	return NULL;
 }
 
-
-static void *k_malloc_aligned(size_t size, size_t align)
+/**
+ * Allocate len consecutive pages aligned to addr
+ */
+static void *k_malloc_aligned(size_t len, size_t addr)
 {
 	acquire_lock(&k_mem.lock);
 	if (!k_mem.free) {
@@ -150,7 +155,7 @@ static void *k_malloc_aligned(size_t size, size_t align)
 	struct next *iter 	= start;
 
 alignment:
-	while ((uint32_t)start % align != 0) {
+	while ((uint32_t)start % addr != 0) {
 		prev = start;
 		start = start->next;
 		if (!start) {
@@ -171,10 +176,10 @@ alignment:
 		}
 
 		// check if we have enough pages
-		if (((uint32_t)iter - (uint32_t)start) == (size-1) * PAGE_SIZE) {
+		if (((uint32_t)iter - (uint32_t)start) == (len-1) * PAGE_SIZE) {
 			prev->next = iter->next;
 			release_lock(&k_mem.lock);
-			memset(start, 0, size * PAGE_SIZE);
+			memset(start, 0, len * PAGE_SIZE);
 			return start;
 		}
 
@@ -285,7 +290,49 @@ void *new_mpu_zone(uint8_t access, uint32_t len)
 	return zone;
 }
 
-void *expand_mpu_zone(uint8_t id)
+/**
+	Update mpu expansion.
+ */
+void *expand_mpu_zone(uint8_t id, uint32_t add_len)
 {
-	return NULL;
+	if (unlikely(id > 7)) 
+		return NULL;
+
+	if (unlikely(add_len == 0))
+		return NULL;
+
+	if (unlikely(!k_mpu[id].addr))
+		return NULL;
+
+	uint32_t len = k_mpu[id].len + add_len;	
+	if (k_mpu[id].addr % len == 0) {
+		// request expansion of the same zone 
+		void *zone = k_malloc_aligned(N_PAGES(add_len), k_mpu[id].addr + k_mpu[id].len);
+		if (!zone)
+			return NULL;
+
+		k_mpu[id].len += PG_ROUND_UP(add_len);
+		update_mpu(id, &k_mpu[id], 1);
+		return k_mpu[id].addr;
+	}
+
+	// memory is not aligned
+	// memory needs to be reallocated
+	free_range((void*)k_mpu[id].addr, (void*)(k_mpu[id].addr + k_mpu[id].len -1));
+	void *zone = k_malloc_aligned(N_PAGES(len), len);
+	if (!zone) {
+		printk("Failed to expand mpu zone\n");
+		// try to allocate previous size
+		zone = k_malloc_aligned(k_mpu[id].len / PAGE_SIZE, k_mpu[id].len);
+		if (!zone)
+			panic("mpu zone became invalid\n");
+
+		k_mpu[id].addr = (uint32_t)zone;
+		update_mpu(id, &k_mpu[id], 1);
+		return zone;
+	}
+
+	k_mpu[id].addr = (uint32_t)zone;
+	k_mpu[id].len = PG_ROUND_UP(len);
+	return k_mpu[id].addr;
 }
