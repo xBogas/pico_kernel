@@ -181,6 +181,9 @@ static void print_int(int i)
 
 static void print_hex(uint32_t i)
 {
+	c_put('0');
+	c_put('x');
+
 	char buf[16];
 	int len = 0;
 
