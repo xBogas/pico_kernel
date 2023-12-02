@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_C_STANDARD 11)
 
 set(PICO_BARE_METAL 1)
+set(CMAKE_BUILD_TYPE Debug)
+set(PICO_DEOPTIMIZED_DEBUG 1)
 
 set(PICO_SDK_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/pico-sdk)
 set(PICO_BOARD pico_w)
@@ -35,6 +37,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 endif()
 
 add_compile_definitions(PICO_HEAP_SIZE=0)
+add_compile_definitions(PICO_STACK_SIZE=0x1000)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${SRC_ASM_FILES})
 
