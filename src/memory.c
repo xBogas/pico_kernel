@@ -313,7 +313,7 @@ void *expand_mpu_zone(uint8_t id, uint32_t add_len)
 
 		k_mpu[id].len += PG_ROUND_UP(add_len);
 		update_mpu(id, &k_mpu[id], 1);
-		return k_mpu[id].addr;
+		return (void *)k_mpu[id].addr;
 	}
 
 	// memory is not aligned
@@ -334,5 +334,5 @@ void *expand_mpu_zone(uint8_t id, uint32_t add_len)
 
 	k_mpu[id].addr = (uint32_t)zone;
 	k_mpu[id].len = PG_ROUND_UP(len);
-	return k_mpu[id].addr;
+	return (void *)k_mpu[id].addr;
 }
