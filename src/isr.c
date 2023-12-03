@@ -1,51 +1,60 @@
 #include "RP2040.h"
 #include <stdlib.h>
 #include "terminal.h"
-#include "pico/printf.h"
+#include "kernel.h"
 
 void isr_invalid(void)
 {
-    printk("NVIC invalid called");
-	exit(1);
+	panic("NVIC invalid called\n");
 }
 
 void isr_nmi(void)
 {
-    printk("NVIC nmi called");
-	exit(1);
+	panic("NVIC nmi called\n");
 }
 
-void isr_hardfault(void)
+struct stack_frame {
+	volatile uint32_t *r0;
+	volatile uint32_t *r1;
+	volatile uint32_t *r2;
+	volatile uint32_t *r3;
+	volatile uint32_t *r12;
+	volatile uint32_t *lr;
+	volatile uint32_t *pc;
+	volatile uint32_t *x_psr; // 7*4 = 28 bytes 0x18 = 24
+};
+
+static struct stack_frame *s_frame;
+
+void hardfault_handler(struct stack_frame *frame)
 {
-    printk("NVIC hardfault called\n");
-    printk("test lr mv\n");
+	s_frame = frame;
+	printk("r0:   %x\n", frame->r0);
+	printk("r1:   %x\n", frame->r1);
+	printk("r2:   %x\n", frame->r2);
+	printk("r3:   %x\n", frame->r3);
+	printk("r12:  %x\n", frame->r12);
+	printk("lr:   %x\n", frame->lr);
+	printk("pc:   %x\n", frame->pc);
+	printk("xpsr: %x\n", frame->x_psr);
 
-    uint32_t lr_status = 0;
-    asm volatile(
-        "mov %0, lr" : "=r" (lr_status)
-    );
+	printk("Error at instruction: %x\n", frame->pc);
+	uint32_t addr = (uint32_t)frame->pc;
 
-    char buf[32];
-    sprintf(buf, "lr: %x\n", lr_status);
-    printk(buf);
+	// jump to next instruction for now
+	frame->pc = (uint32_t *)(addr + 2);
 
-    CONTROL_Type control_status;
-    control_status.w = __get_CONTROL();
-    sprintf(buf, "control: %d\n", control_status.b.SPSEL);
-    printk(buf);
-    //uint32_t ipsr_status = __get_IPSR();
-    //sprintf(buf, "ipsr: %x\n", ipsr_status);
-    //printk(buf);
-    printk("12345678\n"); 
-    exit(1);
+	// ... 
+	// if user mode
+	// do cleanup of process that caused the fault
 }
 
 void isr_svcall(void)
 {
-    printk("NVIC svcall called");
+	panic("NVIC svcall called\n");
 }
 
 void isr_pendsv(void)
 {
-    printk("NVIC pendsv called");
+	panic("NVIC pendsv called\n");
 }
