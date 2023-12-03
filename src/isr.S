@@ -15,7 +15,7 @@
 // if 0xFFFFFFF9UL -> using msp
 // then lr+7 == 0 (overflow)
 isr_hardfault:
-	mov		r1, lr
+	mov		r3, lr
 	adds	r3, #7 	
 	bne.n	stack_is_psp
 	mrs		r0, msp
