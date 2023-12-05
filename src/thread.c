@@ -1,74 +1,99 @@
 #include "thread.h"
 #include "scheduler.h"
+#include "memory.h"
+#include "locks.h"
 
-#include <string.h>
-#include <stdio.h>
 
-static uint32_t thread_id = 0;
+struct stack_frame {
+	uint32_t r8;
+	uint32_t r9;
+	uint32_t r10;
+	uint32_t r11;
+	uint32_t r4;
+	uint32_t r5;
+	uint32_t r6;
+	uint32_t r7;
+	uint32_t r0;
+	uint32_t r1;
+	uint32_t r2;
+	uint32_t r3;
+	uint32_t r12;
+	uint32_t lr;
+	uint32_t pc;
+	uint32_t psr;
+};
 
-#define MIN_STACK_SIZE 128
 
-/**
- * ? Allocate stack-handle first
- * Allocate handle
- * Allocate stack
- * Initialize thread
- * Add to scheduler
- * Should wake up new thread?
- * TODO: Config max size thread name
- */
-int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr *attr) {
-	if (thread_fn == NULL)
-		return 0;
-
-	struct thread_handle *h_thread = malloc(sizeof(struct thread_handle));
-	if (!h_thread)
-		return 0;
-
-	uint32_t stack = MIN_STACK_SIZE;
-	h_thread->thread_fn = thread_fn;
-	h_thread->data	= data;
-	h_thread->id = ++thread_id;
-
-	if (attr != NULL) {
-		h_thread->priority = check_prio(attr->priority);
-
-		h_thread->name = malloc(strlen(attr->name));
-		strcpy(h_thread->name, attr->name);
-
-		if (attr->stack_size > MIN_STACK_SIZE)
-			stack = attr->stack_size;
-	}
-	else {
-		h_thread->priority = 1;
-		h_thread->name = NULL;
-	}
-
-	// check if stack size is correct -> 32 bit ?
-	h_thread->ptr_stack = malloc(stack * sizeof(uint32_t));
-	if (h_thread->ptr_stack == NULL) {
-		k_free(h_thread);
-		return 0;
-	}
-	memset(h_thread->ptr_stack, 0, stack * sizeof(uint32_t));
-	// get top address of stack
-	h_thread->top_stack = &( h_thread->ptr_stack[stack-1]);
-	printf("top stack 0x%p\n", h_thread->top_stack);
-	h_thread->stack_size = stack;
-
-	//TODO: Continue thread handle initialization
-
-	if (!sched_add_thread(h_thread))
-		return 0;
-
-	//? when should wake up thread
-	// if (if priority bigger)
-	// 	wake_up_thread(h_thread);
-
-	return thread_id;
+// TODO:
+static void thread_exit(struct thread_handle *th)
+{
+	printk("performing cleanup for thread\n");
+	return;
 }
 
-void thread_kill(uint32_t thread_id)
+static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle *th)
 {
-	thread_id--;
+	if (!entry || !th)
+		panic("invalid thread_entry params\n");
+
+	printk("starting thread %s\n", th->name);
+	entry(arg);
+	printk("terminating thread %s\n", th->name);
+	thread_exit(th);
+}
+
+/**
+ * This is only for memory allocation without mpu
+*/
+int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr *attr) {
+	if (!thread_fn)
+		return -1;
+
+	const char *name = NULL;
+	uint16_t prio = prio_def;
+	// uint16_t stack_size = PAGE_SIZE - sizeof(struct thread_handle);
+
+	if (!attr) {
+		prio = check_prio(attr->priority);
+		name = attr->name;
+		// TODO: allow for custom stack allocation
+		//stack_size = MAX(attr->stack_size, stack_size);
+	}
+
+	void *start = k_malloc();
+	if(!start)
+		panic("no memory for more threads\n");
+	
+	void *top = start + PAGE_SIZE;
+
+
+	struct thread_handle *th = (struct thread_handle *)start;
+	th->priority = prio;
+	th->state = Ready;
+	th->name = name;
+	th->stack_top = (uint32_t)top;
+	th->stack_ptr = th->stack_top - sizeof(struct stack_frame);
+
+	// for debug
+	static struct stack_frame *frame;
+	frame = (struct stack_frame *)(top - sizeof(struct stack_frame));
+	frame->r8 	= 8;
+	frame->r9 	= 9;
+	frame->r10 	= 10;
+	frame->r11	= 11;
+	frame->r4 	= 4;
+	frame->r5 	= 5;
+	frame->r6 	= 6;
+	frame->r7 	= 7;
+	frame->r0 	= (uint32_t)thread_fn;
+	frame->r1 	= (uint32_t)data;
+	frame->r2 	= (uint32_t)th;
+	frame->r3 	= 3;
+	frame->r12 	= 12;
+	frame->lr	= 0;
+	frame->pc	= (uint32_t)thread_entry;
+	frame->psr	= 0x01000000u; // set xPSR for cortex M
+
+	th->id = sched_add_thread(th);
+	return th->id;
 }
