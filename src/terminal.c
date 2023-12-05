@@ -1,3 +1,4 @@
+#include "kernel.h"
 #include "pico/types.h"
 #include "locks.h"
 #include "terminal.h"
@@ -54,10 +55,6 @@ void usb_task(void)
 
 void 
 #endif
-
-
-#define likely(x)       __builtin_expect(x, 1)
-#define unlikely(x)     __builtin_expect(x, 0)
 
 static struct spinlock print;
 
