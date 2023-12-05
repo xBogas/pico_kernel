@@ -24,11 +24,14 @@ struct stack_frame {
 	volatile uint32_t *x_psr; // 7*4 = 28 bytes 0x18 = 24
 };
 
+// for debug
 static struct stack_frame *s_frame;
 
 void hardfault_handler(struct stack_frame *frame)
 {
+	// for debug
 	s_frame = frame;
+	printk("sp    %x\n", *frame);
 	printk("r0:   %x\n", frame->r0);
 	printk("r1:   %x\n", frame->r1);
 	printk("r2:   %x\n", frame->r2);
@@ -39,14 +42,11 @@ void hardfault_handler(struct stack_frame *frame)
 	printk("xpsr: %x\n", frame->x_psr);
 
 	printk("Error at instruction: %x\n", frame->pc);
-	uint32_t addr = (uint32_t)frame->pc;
+	__asm ("bkpt #0\n");
 
-	// jump to next instruction for now
-	frame->pc = (uint32_t *)(addr + 2);
-
-	// ... 
 	// if user mode
 	// do cleanup of process that caused the fault
+	// get thread with page alignment
 }
 
 void isr_svcall(void)
