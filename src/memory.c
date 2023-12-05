@@ -1,15 +1,10 @@
+#ifdef KERNEL_ENABLE_MPU
+
 #include "memory.h"
 #include "locks.h"
 #include "terminal.h"
 #include "kernel.h"
 #include <string.h>
-
-#define PAGE_SIZE 			1024 // 0x400
-
-#define PG_ROUND_UP(x) 		((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
-#define PG_ROUND_DOWN(x)	((x) & ~(PAGE_SIZE - 1))
-
-#define N_PAGES(x)			PG_ROUND_UP(x) / PAGE_SIZE
 
 void free_range(void *start, void *end);
 void setup_mpu(void);
@@ -336,3 +331,6 @@ void *expand_mpu_zone(uint8_t id, uint32_t add_len)
 	k_mpu[id].len = PG_ROUND_UP(len);
 	return (void *)k_mpu[id].addr;
 }
+
+
+#endif
