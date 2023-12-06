@@ -21,13 +21,21 @@
 #define N_PAGES(x)			PG_ROUND_UP(x) / PAGE_SIZE
 
 
+// initialize memory pool
 void k_mem_init(void);
-void *k_malloc(void);
+
+// allocate a page
+void *k_alloc(void);
+
+// free a page
 void k_free(void *ptr);
+
+#ifdef KERNEL_USE_MPU
 void *new_mpu_zone(uint8_t access, uint32_t size);
 void *expand_mpu_zone(uint8_t id, uint32_t add_len);
+#endif
 
-// These are supposed to be user functions
+// newlibc functions
 void *malloc(size_t size);
 void *calloc(size_t count, size_t size);
 void *realloc(void *ptr, size_t size);
