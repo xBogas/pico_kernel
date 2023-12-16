@@ -1,7 +1,7 @@
 #include "terminal.h"
+#include "sio_fifo.h"
 
 #include "pico/bootrom.h"
-#include "pico/multicore.h"
 
 // hardware registers
 #include "hardware/resets.h"
@@ -9,22 +9,19 @@
 #include "hardware/irq.h"
 #include "hardware/watchdog.h"
 #include "hardware/structs/scb.h"
-#include "hardware/regs/resets.h"
-
-typedef void (*entry_point_t)(void);
+#include "hardware/sync.h"
 
 extern int main();
 void __attribute__((noreturn)) exit(int status);
-
+void launch_core1(void);
 
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 
 static void kernel_entry(void)
 {
     term_init();
-    sleep_ms(10);
     printk("kernel is booting\n");
-	multicore_launch_core1((entry_point_t)main);
+	launch_core1();
 }
 
 // entry point
@@ -70,7 +67,7 @@ void runtime_init(void)
 
     spin_locks_reset();
     irq_init_priorities();
-    alarm_pool_init_default();
+    //alarm_pool_init_default();
 
     // Start and end points of the constructor list,
     // defined by the linker script.
@@ -86,10 +83,11 @@ void runtime_init(void)
     kernel_entry();
 }
 
+
 void __attribute__((noreturn)) exit(int status)
 {
     printk("reseting with status %d\n", status);
-
+    __breakpoint();
     if (status)
         reset_usb_boot(0, 0);
 
@@ -97,18 +95,65 @@ void __attribute__((noreturn)) exit(int status)
     while(1);
 }
 
-void panic(const char *format, ...)
-{
-    printk("PANIC!: ");
-    va_list args;
-    va_start(args, format);
-    vprintk(format, args);
-    va_end(args);
-	exit(1);
-}
 
 void hard_assertion_failure(void)
 {
     panic("Hard assert failed");
 }
 
+
+static void __attribute__((naked)) trampoline(void)
+{
+    __asm ("pop {r0, pc}");
+}
+
+
+// core 1 entry point
+static int entry_point(void)
+{
+    irq_init_priorities();
+    main();
+    printk("core 1 main returned");
+    return 1;
+}
+
+
+static uint32_t __attribute__((section(".stack1"))) core1_stack[PICO_STACK_SIZE / sizeof(uint32_t)];
+
+
+void launch_core1(void)
+{
+    extern char __StackOneBottom[];
+    char *stack = __StackOneBottom;
+    uint32_t *stack_ptr = (uint32_t *) (stack + sizeof(core1_stack));
+
+    stack_ptr -= 2;
+    stack_ptr[0] = (uint32_t) stack;
+    stack_ptr[1] = (uint32_t) entry_point;
+
+    irq_set_enabled(SIO_IRQ_PROC0, false);
+
+    const uint32_t cmds[] = {
+        0, 0, 1, (uint32_t) scb_hw->vtor, (uint32_t) stack_ptr, (uint32_t)trampoline
+    };
+
+    uint32_t iter = 0;
+    do
+    {
+        uint32_t cmd = cmds[iter];
+        if(!cmd) {
+            fifo_flush();
+            __sev();
+        }
+        fifo_push(cmd);
+        uint32_t rv = fifo_pop();
+
+        if (cmd == rv)
+            iter++;
+        else
+            iter = 0;
+
+    } while (iter < 6);
+
+    irq_set_enabled(SIO_IRQ_PROC0, true);
+}
