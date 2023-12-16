@@ -53,17 +53,17 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	uint16_t prio = prio_def;
 	// uint16_t stack_size = PAGE_SIZE - sizeof(struct thread_handle);
 
-	if (!attr) {
+	if (attr) {
 		prio = check_prio(attr->priority);
 		name = attr->name;
 		// TODO: allow for custom stack allocation
 		//stack_size = MAX(attr->stack_size, stack_size);
 	}
 
-	void *start = k_malloc();
+	void *start = k_alloc();
 	if(!start)
 		panic("no memory for more threads\n");
-	
+
 	void *top = start + PAGE_SIZE;
 
 
@@ -96,4 +96,13 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 
 	th->id = sched_add_thread(th);
 	return th->id;
+}
+
+#include "hardware/structs/timer.h"
+
+void wait(uint32_t ms)
+{
+	uint32_t start = timer_hw->timerawl;
+	while (timer_hw->timerawl - start < ms*1000)
+	{ }
 }
