@@ -1,1 +1,4 @@
 
+[submodule "lib/pico-sdk"]
+	path = lib/pico-sdk
+	url = https://github.com/xBogas/pico-sdk.git
