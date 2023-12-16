@@ -79,6 +79,19 @@ static void print_hex(uint32_t i);
 static void print_int(int i);
 static void c_put(char c);
 
+void panic(const char *format, ...)
+{
+	// force unlock print lock
+	if (holding(&print))
+		release_lock(&print);
+
+    printk("PANIC!: ");
+    va_list args;
+    va_start(args, format);
+    vprintk(format, args);
+    va_end(args);
+	exit(1);
+}
 
 void printk(const char *fmt, ...)
 {
