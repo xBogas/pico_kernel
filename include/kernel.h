@@ -7,9 +7,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "pico/platform.h"
 
 void __attribute__((noreturn)) panic(const char *fmt, ...);
 
 void __attribute__((noreturn)) exit(int status);
+
+#define cpu_id()		get_core_num()
 
 #endif
