@@ -14,7 +14,7 @@ struct {
 	uint32_t id;
 } sched;
 
-void init_sched(void)
+void sched_init(void)
 {
 	init_lock(&sched.lock, "scheduler");
 }
@@ -34,7 +34,7 @@ static uint32_t new_thread_id(void)
 //! just adding in the end for now
 uint32_t sched_add_thread(struct thread_handle* th)
 {
-	struct next *tmp = k_malloc(); // TODO: change from page allocation
+	struct next *tmp = malloc(sizeof(struct next)); // TODO: change from page allocation
 	tmp->th = th;
 	uint32_t id;
 
@@ -121,16 +121,16 @@ struct {
 	struct thread_handle *next;
 }sched_status;
 
+
 uint32_t systick_counter;
 
-static void log_ticks(void)
-{
-	static uint32_t var = 13;
-	var++;
-}
 
-void isr_systick(void)
+void __attribute__((naked)) isr_systick(void)
 {
+	__asm (
+		"push {lr}\n"
+		);
+
 	systick_counter++;
 	if (systick_counter > 1000) {
 		systick_counter = 0;
@@ -141,7 +141,12 @@ void isr_systick(void)
 		sched.first = sched.first->next;
 		context_switch(&sched_status);
 	}
+
+	__asm (
+		"pop {pc}\n"
+		);
 }
+
 // check if sched started running 
 int sched_runtime(void)
 {
