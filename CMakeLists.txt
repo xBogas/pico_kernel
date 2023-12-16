@@ -45,16 +45,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
 # pull in common dependencies
 target_link_libraries(${PROJECT_NAME}
-                        pico_stdlib
-                        pico_multicore
-                        hardware_regs
-                        hardware_structs
-                        hardware_resets
-                        cmsis_core) 
+                        pico_standard_link
+                        hardware_uart
+                        cmsis_core
+                        )
 
-# enable usb output, disable uart output
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
-pico_enable_stdio_uart(${PROJECT_NAME} 1)
+target_link_options(${PROJECT_NAME} PUBLIC "--specs=nosys.specs")
+pico_wrap_function(${PROJECT_NAME} malloc)
 
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${PROJECT_NAME})
