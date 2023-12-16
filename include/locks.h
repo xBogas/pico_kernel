@@ -1,7 +1,7 @@
 #ifndef W_KERNEL_LOCKS_H
 #define W_KERNEL_LOCKS_H
 
-#include "pico.h"
+#include "kernel.h"
 
 // Spinlock
 struct spinlock
@@ -38,5 +38,13 @@ void acquire_lock(struct spinlock *lock);
  * @param lock 
  */
 void release_lock(struct spinlock *lock);
+
+/**
+ * @brief Check if a spinlock is held
+ * 
+ * @param lock 
+ * @return int 
+ */
+int holding(struct spinlock *lock);
 
 #endif
