@@ -9,6 +9,9 @@
 		exit(1);		\
 	}		
 
+// initialize scheduler
+void sched_init(void);
+
 // add thread_handle
 uint32_t sched_add_thread(struct thread_handle* th);
 
@@ -16,12 +19,11 @@ uint32_t sched_add_thread(struct thread_handle* th);
 // for now just loop through the threads
 void start_sched(void);
 
-
+//TODO:
 // check if sched started running 
 int sched_runtime(void);
 
-// not sure how to do this for now
-// this should wake up thread
+// wake up thread
 void wake_up_thread(struct thread_handle* th);
 
 #endif
