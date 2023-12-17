@@ -47,4 +47,21 @@ void release_lock(struct spinlock *lock);
  */
 int holding(struct spinlock *lock);
 
+
+#define MUTEX_UNOWNED 0xFF
+
+struct mutex
+{
+	struct spinlock sp_lk;
+	uint8_t lock;
+	uint8_t owner;
+};
+
+void init_mutex(struct mutex *mtx, const char *name);
+
+
+void acquire_mutex(struct mutex *mtx);
+
+
+void release_mutex(struct mutex *mtx);
 #endif
