@@ -1,6 +1,5 @@
 .syntax unified
 .cpu cortex-m0plus
-.thumb
 
 .thumb_func
 .global isr_hardfault
@@ -23,16 +22,26 @@ enter_c:
 	ldr		r2, =hardfault_handler
 	bx 		r2
 
-// this is not likely to happen (for now at least)
-// when enter user code this should be reversed
 stack_is_psp:
 	mrs		r0, psp
 	b		enter_c
 
-/*
-TODO: check if EXC_RETURN is 0xFFFFFFF1UL 
-handler mode ! (called from isr)
-stack_is_msp:
+
+.extern syscall_handler
+
+.thumb_func
+.global isr_svcall
+.type isr_svcall, %function
+isr_svcall:
+	movs	r0, #4
+	mov		r1, lr
+	cmp		r1, r0
+	beq		stack_used_msp
+	mrs		r0, psp
+	ldr		r1, =syscall_handler
+	bx 		r1
+
+stack_used_msp:
 	mrs		r0, msp
-	b		enter_c
-*/
+	ldr		r1, =syscall_handler
+	bx		r1

@@ -21,16 +21,11 @@ struct stack_frame {
 	volatile uint32_t *r12;
 	volatile uint32_t *lr;
 	volatile uint32_t *pc;
-	volatile uint32_t *x_psr; // 7*4 = 28 bytes 0x18 = 24
+	volatile uint32_t *x_psr;
 };
-
-// for debug
-static struct stack_frame *s_frame;
 
 void hardfault_handler(struct stack_frame *frame)
 {
-	// for debug
-	s_frame = frame;
 	printk("sp    %x\n", *frame);
 	printk("r0:   %x\n", frame->r0);
 	printk("r1:   %x\n", frame->r1);
@@ -42,16 +37,11 @@ void hardfault_handler(struct stack_frame *frame)
 	printk("xpsr: %x\n", frame->x_psr);
 
 	printk("Error at instruction: %x\n", frame->pc);
-	__asm ("bkpt #0\n");
-
+	while (1)
+	{ }
 	// if user mode
 	// do cleanup of process that caused the fault
 	// get thread with page alignment
-}
-
-void isr_svcall(void)
-{
-	panic("NVIC svcall called\n");
 }
 
 void isr_pendsv(void)
