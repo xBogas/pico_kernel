@@ -3,6 +3,7 @@
 
 #include "kernel.h"
 #include "hardware/structs/sio.h"
+#include "hardware/sync.h"
 
 /**
  * Check if can read from FIFO
@@ -65,6 +66,7 @@ static inline void fifo_push(uint32_t data)
 	while (!fifo_w())
 		;
 	fifo_write(data);
+	__sev();
 }
 
 #endif
