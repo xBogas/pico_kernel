@@ -48,13 +48,14 @@ void release_lock(struct spinlock *lock);
 int holding(struct spinlock *lock);
 
 
-#define MUTEX_UNOWNED 0xFF
+#define MUTEX_UNOWNED NULL
 
 struct mutex
 {
 	struct spinlock sp_lk;
+	struct thread_handle *owner;
+	void *blocked;
 	uint8_t lock;
-	uint8_t owner;
 };
 
 void init_mutex(struct mutex *mtx, const char *name);
