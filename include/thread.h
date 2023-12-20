@@ -30,6 +30,7 @@ struct thread_attr {
 //! Set stack ptr to first 4 bytes
 struct thread_handle {
 	uint32_t stack_ptr;
+	void *obj;				// obj to sleep on
 	uint16_t id;
 	uint16_t priority;
 	const char *name;
