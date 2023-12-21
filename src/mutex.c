@@ -6,6 +6,7 @@ void init_mutex(struct mutex *mtx, const char *name)
 	printk("initializing mutex %s\n", name);
 	init_lock(&mtx->sp_lk, name);
 	mtx->owner = MUTEX_UNOWNED;
+	mtx->blocked = NULL;
 }
 
 void acquire_mutex(struct mutex *mtx)
@@ -18,7 +19,7 @@ void acquire_mutex(struct mutex *mtx)
 		sleep(mtx);
 
 	mtx->lock = 1;
-	mtx->owner = mythread()->id;
+	mtx->owner = mythread();
 	release_lock(&mtx->sp_lk);
 }
 
