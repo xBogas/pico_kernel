@@ -115,7 +115,9 @@ void printk(const char *fmt, ...)
 
 void vprintk(const char *fmt, va_list ap)
 {
-	acquire_lock(&print);
+	if (!__get_current_exception())
+		acquire_lock(&print);
+
 	while (*fmt != '\0') {
 		if (*fmt != '%') {
 			c_put(*fmt++);
@@ -145,7 +147,9 @@ void vprintk(const char *fmt, va_list ap)
 		}
 		fmt++;
 	}
-	release_lock(&print);
+
+	if (!__get_current_exception())
+		release_lock(&print);
 }
 
 static void c_put(char c)
