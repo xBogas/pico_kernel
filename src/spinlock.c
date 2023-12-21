@@ -1,15 +1,25 @@
 #include "locks.h"
+#include "terminal.h"
+#include "scheduler.h"
 #include "hardware/structs/sio.h"
 #include "hardware/sync.h"
 
 #define BASE_SPINLOCK 		SIO_BASE + SIO_SPINLOCK0_OFFSET
 #define SPINLOCK_STATE 		SIO_BASE + SIO_SPINLOCK_ST_OFFSET
 
+
 void init_lock(struct spinlock *lock, const char *name)
 {
-	lock->lock = spin_lock_init(spin_lock_claim_unused(1));
-	lock->irq = 0;
+	if (lock == NULL)
+		panic("init_lock: lock is NULL\n");
+	
+	int id = spin_lock_claim_unused(1);
+	if (id < 0)
+		panic("init_lock: no more locks available\n");
+
+	lock->lock = spin_lock_init(id);
 	lock->name = name;
+	lock->irq = 0;
 	lock->cpu = -1;
 }
 
