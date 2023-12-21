@@ -2,53 +2,75 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "thread.h"
-#include "hardware/timer.h"
+
+static struct mutex mtx;
+
+static int i = 0;
 
 void task1(__unused void *data)
 {
-	int i = 0;
 	while (1) {
-		printk("[%d]	hi! bar\n", i);
-		busy_wait_ms(500);
+		acquire_mutex(&mtx);
+		// printk("hi! bar [%d]\n", i);
+		// bs_wait(10);
+		release_mutex(&mtx);
+
 		i++;
 	}
 }
 
 void task2(__unused void *data)
 {
-	int i = 0x7FFFFFFF;
 	while (1) {
-		printk("[%d]	hi! foo\n", i);
-		busy_wait_ms(100);
-		i--;
+		acquire_mutex(&mtx);
+		// printk("hi! foo [%d]\n", i);
+		// bs_wait(10);
+		release_mutex(&mtx);
+
+		i++;
 	}
 }
 
+void task3(__unused void *data)
+{
+	int i = 0;
+	while (1) {
+		acquire_mutex(&mtx);
+		// printk("hi! foobar [%d]\n", i);
+		// bs_wait(10);
+		release_mutex(&mtx);
+
+		i++;
+	}
+}
+
+
 int main(void){
-	if (get_core_num() == 0){
+	if (cpu_id() == 0){
 		printk("core 0 entered main\n");
 		k_mem_init();
+		sched_init();
 
-		struct thread_attr atr_1 = {
+		init_mutex(&mtx, "mtx_test");
+	
+		struct thread_attr atr = {
 			.name = "task1",
 			.priority = 1,
 			.stack_size = 0x400
 		};
 
-		struct thread_attr atr_2 = {
-			.name = "task2", // name can go out of scope
-			.priority = 1,
-			.stack_size = 0x400
-		};
+		thread_create(&task1, NULL, &atr);
 
-		thread_create(&task1, NULL, &atr_1);
-		thread_create(&task2, NULL, &atr_2);
+		atr.name = "task2";
+		thread_create(&task2, NULL, &atr);
 
-	} //pc at 0x10000522 <main+42>
+		atr.name = "task3";
+		thread_create(&task3, NULL, &atr);
+	}
 	else {
 		printk("core 1 running ...\n");
 		while (1)
-			;//usb_task();
+			;
 	}
 
 	start_sched();
