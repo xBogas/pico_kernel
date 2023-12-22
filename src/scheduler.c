@@ -137,21 +137,25 @@ static uint32_t systick_counter = 0;
 
 void isr_systick(void)
 {
-	__asm ("push {lr}\n");
-
 	systick_counter++;
 	if (systick_counter > 10) {
 		systick_counter = 0;
+
+		__asm ("push {lr}\n");
 
 		sched_status.run = mythread();
 		sched_status.next = sched.first->th;
 		sched.first = sched.first->next;
 		printk("isr %s -> %s\n", sched_status.run->name, sched_status.next->name);
+
+		__asm ("pop {r1}\n");
+
 		if (sched_status.run->id != sched_status.next->id)
 			context_switch(&sched_status);
+		else
+			__asm ("bx r1\n");
 	}
-
-	__asm ("pop {pc}\n");
+	__asm ("bx lr\n");
 }
 
 
