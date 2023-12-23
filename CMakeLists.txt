@@ -26,6 +26,7 @@ pico_sdk_init()
 
 set(TRUE_BAREMETAL FALSE)
 include(cmake/baremetal.cmake)
+include(config/wifi_config.cmake)
 
 add_compile_options(-Wall
                     -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
@@ -48,7 +49,13 @@ target_link_libraries(${PROJECT_NAME}
                         pico_standard_link
                         hardware_uart
                         cmsis_core
+                        pico_cyw43_arch_lwip_poll
+                        pico_time
                         )
+
+if(WIFI_CONFIG)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC CYW43_CUSTOM_CONFIG="${WIFI_CONFIG}")
+endif()
 
 target_link_options(${PROJECT_NAME} PUBLIC "--specs=nosys.specs")
 pico_wrap_function(${PROJECT_NAME} malloc)
