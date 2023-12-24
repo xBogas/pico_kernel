@@ -79,6 +79,13 @@ static void print_hex(uint32_t i);
 static void print_int(int i);
 static void c_put(char c);
 
+void panic_unsupported(void)
+{
+	uint32_t lr;
+	__asm volatile("mov %0, lr" : "=r"(lr));
+	panic("unsupported %x\n", lr);
+}
+
 void panic(const char *format, ...)
 {
 	// force unlock print lock
@@ -115,8 +122,8 @@ void printk(const char *fmt, ...)
 
 void vprintk(const char *fmt, va_list ap)
 {
-	if (!__get_current_exception())
-		acquire_lock(&print);
+	// if (!__get_current_exception())
+	// 	acquire_lock(&print);
 
 	while (*fmt != '\0') {
 		if (*fmt != '%') {
@@ -148,8 +155,8 @@ void vprintk(const char *fmt, va_list ap)
 		fmt++;
 	}
 
-	if (!__get_current_exception())
-		release_lock(&print);
+	// if (!__get_current_exception())
+	// 	release_lock(&print);
 }
 
 static void c_put(char c)

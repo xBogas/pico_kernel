@@ -8,8 +8,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "pico.h"
 #include "pico/platform.h"
 #include "RP2040.h"
+
+void __attribute__((noreturn)) panic_unsupported(void);
 
 void __attribute__((noreturn)) panic(const char *fmt, ...);
 
