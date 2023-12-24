@@ -53,6 +53,7 @@ static struct thread_handle *get_runnable(void)
 }
 
 
+//TODO:
 static void preempt(struct thread_handle *next, struct thread_handle *running)
 {
 	if( next->priority < running->priority)
@@ -87,14 +88,18 @@ uint32_t sched_add_thread(struct thread_handle* th)
 #define SYSTEM_CLOCK 	125000000UL
 #define SYS_TICK		SYSTEM_CLOCK/1000 -1
 
-extern void context_switch(void *ptr);
-void __attribute__((naked)) isr_systick(void);
 void start_sched(void);
+
+#ifdef USE_PRIV_THREADS
+	#define THREAD_STATUS		PRIV_TH
+#else
+	#define THREAD_STATUS		UNPRIV_TH
+#endif
 
 void start_sched(void)
 {
 	NVIC_SetPriority(PendSV_IRQn, 0xff);
-	NVIC_SetPriority(SysTick_IRQn, 0x00);
+	NVIC_SetPriority(SysTick_IRQn, 0xff); // due to irq overlaping
 
 	systick_hw->csr = 0;
 	systick_hw->rvr = SYS_TICK;
@@ -105,14 +110,14 @@ void start_sched(void)
 
 	struct thread_handle *run = sched.first->th;
 	sched.first = sched.first->next;
-	__set_PSP(run->stack_ptr);// offset for thread entry
+	__set_PSP(run->stack_ptr);
 
 	release_lock(&sched.lock);
 
-	__set_CONTROL(0x03);
+	__set_CONTROL(THREAD_STATUS);
 	__ISB();
 
-	// consume stack frame to get pc
+	// consume initial stack frame
 	__asm (
 		"pop {r0, r1, r2, r3}\n"
 		"mov r8,  r0\n"
@@ -133,30 +138,7 @@ struct {
 }sched_status;
 
 
-static uint32_t systick_counter = 0;
-
-void isr_systick(void)
-{
-	systick_counter++;
-	if (systick_counter > 10) {
-		systick_counter = 0;
-
-		__asm ("push {lr}\n");
-
-		sched_status.run = mythread();
-		sched_status.next = sched.first->th;
-		sched.first = sched.first->next;
-		printk("isr %s -> %s\n", sched_status.run->name, sched_status.next->name);
-
-		__asm ("pop {r1}\n");
-
-		if (sched_status.run->id != sched_status.next->id)
-			context_switch(&sched_status);
-		else
-			__asm ("bx r1\n");
-	}
-	__asm ("bx lr\n");
-}
+uint32_t systick_counter = 0;
 
 
 // check if sched started running 
@@ -181,23 +163,11 @@ static void scheduler(struct thread_handle *running, struct thread_handle *next)
 	sched_status.run = running;
 	sched_status.next = next;
 
-	preempt(next, running);
+	// preempt(next, running);
 
 	printk("reschedule %s\n", running->name);
 	sys_switch(&sched_status);
 	printk("wake up %s\n", running->name);
-}
-
-
-struct thread_handle *mythread(void)
-{
-	uint32_t ptr;
-	if (__get_current_exception())
-		ptr = __get_PSP();
-	else // assume user mode using psp
-		__asm volatile("mov %0, sp\n" : "=r"(ptr));
-
-	return (struct thread_handle *)(PG_ROUND_DOWN(ptr));
 }
 
 

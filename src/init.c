@@ -10,6 +10,10 @@
 #include "hardware/watchdog.h"
 #include "hardware/structs/scb.h"
 #include "hardware/sync.h"
+#include "hardware/structs/padsbank0.h"
+
+#include "pico/mutex.h"
+#include "pico/time.h"
 
 extern int main();
 void __attribute__((noreturn)) exit(int status);
@@ -62,12 +66,17 @@ void runtime_init(void)
 	clocks_init();
     unreset_block_wait(RESETS_RESET_BITS);
 
+    // reset pads
+    padsbank0_hw_t *padsbank0_hw_clear = (padsbank0_hw_t *)hw_clear_alias_untyped(padsbank0_hw);
+    padsbank0_hw_clear->io[26] = padsbank0_hw_clear->io[27] = PADS_BANK0_GPIO0_IE_BITS;
+    padsbank0_hw_clear->io[28] = padsbank0_hw_clear->io[29] = PADS_BANK0_GPIO0_IE_BITS;
+
     __builtin_memcpy(ram_vector_table, (uint32_t *) scb_hw->vtor, sizeof(ram_vector_table));
     scb_hw->vtor = (uintptr_t) ram_vector_table;
 
     spin_locks_reset();
     irq_init_priorities();
-    //alarm_pool_init_default();
+    alarm_pool_init_default();
 
     // Start and end points of the constructor list,
     // defined by the linker script.

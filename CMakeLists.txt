@@ -49,16 +49,18 @@ target_link_libraries(${PROJECT_NAME}
                         pico_standard_link
                         hardware_uart
                         cmsis_core
-                        pico_cyw43_arch_lwip_poll
+                        pico_cyw43_arch_lwip_threadsafe_background
                         pico_time
                         )
 
 if(WIFI_CONFIG)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC CYW43_CUSTOM_CONFIG="${WIFI_CONFIG}")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC 
+        CYW43_CUSTOM_CONFIG="${WIFI_CONFIG}"
+        USE_PRIV_THREADS)
 endif()
 
 target_link_options(${PROJECT_NAME} PUBLIC "--specs=nosys.specs")
-pico_wrap_function(${PROJECT_NAME} malloc)
+target_link_options(${PROJECT_NAME} PUBLIC "LINKER:--wrap=malloc")
 
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${PROJECT_NAME})

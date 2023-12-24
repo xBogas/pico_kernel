@@ -90,6 +90,7 @@ extern void *__real_malloc(size_t size);
 
 //static struct mutex malloc_mutex;
 
+//TODO:
 void *__wrap_malloc(size_t size)
 {
 	if (size == 0)
@@ -97,7 +98,6 @@ void *__wrap_malloc(size_t size)
 
 	//mutex_lock(&malloc_mutex);
 
-	printk("malloc: asked for %d bytes\n", size);
 	void *ptr = __real_malloc(size);
 
 	//mutex_unlock(&malloc_mutex);

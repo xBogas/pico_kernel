@@ -3,7 +3,6 @@
 
 void init_mutex(struct mutex *mtx, const char *name)
 {
-	printk("initializing mutex %s\n", name);
 	init_lock(&mtx->sp_lk, name);
 	mtx->owner = MUTEX_UNOWNED;
 	mtx->blocked = NULL;
