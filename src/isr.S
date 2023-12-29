@@ -66,9 +66,7 @@ invalid_syscall:
 
 
 .extern systick_counter
-.extern sched_status
-.extern isr_systick_12
-.extern sched
+.extern pre_switch
 
 .syntax unified
 .global isr_systick
@@ -86,16 +84,10 @@ isr_systick:
 prepare_swap:
 	movs	r1, #0
 	str		r1, [r0, #0]			// reset systick counter
+	ldr 	r0, =sched_status //! testing - remove this line
 	mrs		r3, psp					// get stack pointer
 	ldr 	r1, =0xfffffc00			// ~(PAGE_SIZE - 1)
 	ands	r3, r3, r1				// round down to nearest page
-	ldr 	r0, =sched_status
-	str 	r3, [r0, #0]			// set sched_status.run to current thread sp
-	ldr 	r3, =sched
-	adds	r3, #16					// get sched.first address
-	ldr 	r2, [r3, #0]			// get sched.first->th address
-	ldr 	r1, [r2, #0]			// get sched.first->th value
-	str 	r1, [r0, #4] 			// set sched_status.next to sched.first->th
-	ldr 	r2, [r2, #4]			// get sched.first->next value	
-	str 	r2, [r3] 				// set sched.first = sched.first->next
+	mov 	r0, r3
+	bl 		pre_switch				// call pre_switch
 	bl 		context_switch

@@ -7,7 +7,7 @@
 
 static struct mutex mtx;
 
-void task1(__unused void *data)
+void blink(__unused void *data)
 {
 	uint32_t start = time_us_32();
 	bool state = true;
@@ -48,7 +48,7 @@ void task2(__unused void *data)
 		printk("hi! foo [%d]\n", i);
 		release_mutex(&mtx);
 
-		wait(500);
+		wait(750);
 		i++;
 	}
 }
@@ -61,7 +61,7 @@ void task3(__unused void *data)
 		printk("hi! bar [%d]\n", i);
 		release_mutex(&mtx);
 
-		wait(500);
+		wait(1000);
 		i++;
 	}
 }
@@ -76,21 +76,23 @@ int main(void){
 		init_mutex(&mtx, "mtx_test");
 
 		struct thread_attr atr = {
-			.name = "task1",
-			.priority = 1,
+			.name = "blink",
+			.priority = prio_def,
 			.stack_size = 0x400
 		};
+		thread_create(&blink, NULL, &atr);
 
-		thread_create(&task1, NULL, &atr);
+		atr.name = "wifi scan";
+		atr.priority = prio_high;
+		thread_create(&scan, NULL, &atr);
 
 		atr.name = "task2";
+		atr.priority = prio_high;
 		thread_create(&task2, NULL, &atr);
 
 		atr.name = "task3";
+		atr.priority = prio_max;
 		thread_create(&task3, NULL, &atr);
-
-		atr.name = "wifi scan";
-		thread_create(&scan, NULL, &atr);
 	}
 	else {
 		printk("core 1 running ...\n");

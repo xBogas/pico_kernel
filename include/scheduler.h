@@ -28,11 +28,13 @@ static __force_inline struct thread_handle *mythread(void)
 #else
 	if (__get_current_exception())
 		ptr = __get_PSP();
-	else // assume user mode using psp
+	else // assume non priv user mode using psp
 		__asm volatile("mov %0, sp\n" : "=r"(ptr));
 #endif
 	return (struct thread_handle *)(PG_ROUND_DOWN(ptr));
 }
+
+void yield(struct thread_handle *th, uint32_t ms);
 
 // sleep thread
 void sleep(struct mutex *mtx);

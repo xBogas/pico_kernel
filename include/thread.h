@@ -35,13 +35,15 @@ struct thread_handle {
 	uint16_t priority;
 	const char *name;
 	uint16_t state;
-	uint16_t stack_size; // not needed
-	uint32_t stack_top;	 // size is this addr to its value
+	uint16_t stack_size; 	// not needed
+	uint32_t stack_top;		// size is this addr to its value
 };
 
 int thread_create(void (*thread_fn)(void *data),
 					void *data,
 					struct thread_attr *attr);
+
+void bs_wait(uint32_t ms);
 
 void wait(uint32_t ms);
 

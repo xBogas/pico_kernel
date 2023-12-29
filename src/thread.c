@@ -28,6 +28,7 @@ struct stack_frame {
 static void thread_exit(struct thread_handle *th)
 {
 	printk("performing cleanup for thread\n");
+	free(th);
 	return;
 }
 
@@ -56,7 +57,6 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	if (attr) {
 		prio = check_prio(attr->priority);
 		name = attr->name;
-		// TODO: allow for custom stack allocation
 		//stack_size = MAX(attr->stack_size, stack_size);
 	}
 
@@ -98,11 +98,19 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	return th->id;
 }
 
-#include "hardware/structs/timer.h"
+#include "hardware/timer.h"
+#include "scheduler.h"
+
+void bs_wait(uint32_t ms)
+{
+	uint32_t start = time_us_32();
+	while (time_us_32() - start < ms*1000)
+	{ }
+}
 
 void wait(uint32_t ms)
 {
-	uint32_t start = timer_hw->timerawl;
-	while (timer_hw->timerawl - start < ms*1000)
-	{ }
+	struct thread_handle *th = mythread();
+	th->state = Waiting;
+	yield(th, ms);
 }
