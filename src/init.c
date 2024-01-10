@@ -126,15 +126,21 @@ static int entry_point(void)
     return 1;
 }
 
-
+// stack being optimized out for some reason!
 static uint32_t __attribute__((section(".stack1"))) core1_stack[PICO_STACK_SIZE / sizeof(uint32_t)];
 
 
 void launch_core1(void)
 {
     extern char __StackOneBottom[];
+    extern char __StackOneTop[];
+    printk("core 1 stack %x - %x\n", __StackOneBottom, __StackOneTop);
+
     char *stack = __StackOneBottom;
     uint32_t *stack_ptr = (uint32_t *) (stack + sizeof(core1_stack));
+
+    // memset is replaced by a ROM function
+    __builtin_memset(core1_stack, 0, sizeof(core1_stack)); // dont allow to be optimized out
 
     stack_ptr -= 2;
     stack_ptr[0] = (uint32_t) stack;
