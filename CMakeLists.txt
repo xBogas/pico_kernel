@@ -64,3 +64,6 @@ target_link_options(${PROJECT_NAME} PUBLIC "LINKER:--wrap=malloc")
 
 # create map/bin/hex/uf2 file etc.
 pico_add_extra_outputs(${PROJECT_NAME})
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_OBJDUMP} -t ${PROJECT_NAME}.elf > ${PROJECT_NAME}.sym
+)
