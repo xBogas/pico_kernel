@@ -37,7 +37,7 @@ static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle 
 	if (!entry || !th)
 		panic("invalid thread_entry params\n");
 
-	printk("starting thread %s\n", th->name);
+	printk("starting thread %s on core%d\n", th->name, cpu_id());
 	entry(arg);
 	printk("terminating thread %s\n", th->name);
 	thread_exit(th);

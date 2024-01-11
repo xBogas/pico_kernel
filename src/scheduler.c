@@ -115,6 +115,7 @@ void sched_init(void)
 }
 
 // ask scheduler for next thread to run!
+// is thread safe
 static struct thread_handle *get_runnable(void)
 {
 	struct thread_handle *th = pop_th();
@@ -169,6 +170,9 @@ void start_sched(void)
 	systick_hw->csr = 0b0111;
 
 	struct thread_handle *run = get_runnable();
+	if (!run)
+		panic("no runnable threads");
+	
 	__set_PSP(run->stack_ptr);
 
 	__set_CONTROL(THREAD_STATUS);
@@ -212,6 +216,7 @@ int sched_runtime(void)
 	return 0;
 }
 
+extern void context_switch(void *ptr);
 
 static void scheduler(struct thread_handle *running, struct thread_handle *next)
 {
@@ -234,6 +239,7 @@ static void scheduler(struct thread_handle *running, struct thread_handle *next)
 
 	// printk("bye bye %s\n", running->name);
 	sys_switch(&sched_status);
+	//context_switch(&sched_status);
 	// printk("wake up %s\n", running->name);
 
 	// next->priority = prio;

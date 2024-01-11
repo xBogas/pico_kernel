@@ -3,42 +3,8 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "thread.h"
-#include "wifi.h"
 
 static struct mutex mtx;
-
-void blink(__unused void *data)
-{
-	uint32_t start = time_us_32();
-	bool state = true;
-
-	while (1) {
-		if (time_us_32() - start > 1000000) {
-			start = time_us_32();
-			cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, state);
-			state = !state;
-		}
-		wait(50);
-	}
-}
-
-void scan(__unused void *data)
-{
-	uint32_t start = time_us_32();
-
-	while (1) {
-		if (time_us_32() - start > 3000000) {
-			start = time_us_32();
-			acquire_mutex(&mtx);
-			wifi_scan();
-			release_mutex(&mtx);
-		}
-
-		wait(500);
-	}
-}
-
-
 
 void task2(__unused void *data)
 {
@@ -66,38 +32,33 @@ void task3(__unused void *data)
 	}
 }
 
-
+static int ready = 0;
 int main(void){
+	
 	if (cpu_id() == 0){
 		printk("core 0 entered main\n");
 		k_mem_init();
 		sched_init();
-		wifi_init();
 		init_mutex(&mtx, "mtx_test");
 
 		struct thread_attr atr = {
-			.name = "blink",
+			.name = "task1",
 			.priority = prio_def,
 			.stack_size = 0x400
 		};
-		thread_create(&blink, NULL, &atr);
-
-		atr.name = "wifi scan";
-		atr.priority = prio_high;
-		thread_create(&scan, NULL, &atr);
-
-		atr.name = "task2";
 		atr.priority = prio_high;
 		thread_create(&task2, NULL, &atr);
 
-		atr.name = "task3";
+		atr.name = "task2";
 		atr.priority = prio_max;
 		thread_create(&task3, NULL, &atr);
+
+		ready = 1;
 	}
 	else {
 		printk("core 1 running ...\n");
 		while (1)
-			;
+			bs_wait(1);
 	}
 
 	start_sched();
