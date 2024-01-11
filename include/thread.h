@@ -11,7 +11,8 @@ enum th_state {
 	Waiting,
 	Blocked,
 	Stopped,
-	Killed
+	Killed,
+	Idle
 };
 
 enum th_prio {

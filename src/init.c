@@ -12,7 +12,7 @@
 #include "hardware/sync.h"
 #include "hardware/structs/padsbank0.h"
 
-#include "pico/mutex.h"
+//#include "pico/mutex.h"
 #include "pico/time.h"
 
 extern int main();
@@ -121,6 +121,7 @@ static void __attribute__((naked)) trampoline(void)
 static int entry_point(void)
 {
     irq_init_priorities();
+    printk("core 1 entering main %x\n", __get_MSP());
     main();
     printk("core 1 main returned");
     return 1;

@@ -37,6 +37,7 @@ static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle 
 	if (!entry || !th)
 		panic("invalid thread_entry params\n");
 
+	th->state = Running;
 	printk("starting thread %s on core%d\n", th->name, cpu_id());
 	entry(arg);
 	printk("terminating thread %s\n", th->name);
@@ -111,6 +112,5 @@ void bs_wait(uint32_t ms)
 void wait(uint32_t ms)
 {
 	struct thread_handle *th = mythread();
-	th->state = Waiting;
 	yield(th, ms);
 }

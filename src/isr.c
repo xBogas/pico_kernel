@@ -26,19 +26,23 @@ struct stack_frame {
 
 void hardfault_handler(struct stack_frame *frame)
 {
-	printk("sp    %x\n", *frame);
-	printk("r0:   %x\n", frame->r0);
-	printk("r1:   %x\n", frame->r1);
-	printk("r2:   %x\n", frame->r2);
-	printk("r3:   %x\n", frame->r3);
-	printk("r12:  %x\n", frame->r12);
-	printk("lr:   %x\n", frame->lr);
-	printk("pc:   %x\n", frame->pc);
-	printk("xpsr: %x\n", frame->x_psr);
+	panic_terminal();
+	for (size_t i = 500; i != 0; i--)
+		;
 
-	printk("Error at instruction: %x\n", frame->pc);
-	while (1)
-	{ }
+	force_printk("sp    %x\n", *frame);
+	force_printk("r0:   %x\n", frame->r0);
+	force_printk("r1:   %x\n", frame->r1);
+	force_printk("r2:   %x\n", frame->r2);
+	force_printk("r3:   %x\n", frame->r3);
+	force_printk("r12:  %x\n", frame->r12);
+	force_printk("lr:   %x\n", frame->lr);
+	force_printk("pc:   %x\n", frame->pc);
+	force_printk("xpsr: %x\n", frame->x_psr);
+
+	force_printk("Error at instruction: %x\n", frame->pc);
+	while(1)
+		;
 	// if user mode
 	// do cleanup of process that caused the fault
 	// get thread with page alignment

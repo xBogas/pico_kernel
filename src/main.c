@@ -6,30 +6,42 @@
 
 static struct mutex mtx;
 
-void task2(__unused void *data)
+struct task_param
 {
+	const char *str;
+	uint32_t timer;
+};
+
+
+void task(void *data)
+{
+	struct task_param *param = (struct task_param *)data;
+	const char *str = param->str;
 	int i = 0;
 	while (1) {
 		acquire_mutex(&mtx);
-		printk("hi! foo [%d]\n", i);
+		printk("hi! %s [%d] from %d\n", str, i++, cpu_id());
 		release_mutex(&mtx);
 
-		wait(750);
-		i++;
+		wait(param->timer);
 	}
 }
 
-void task3(__unused void *data)
-{
-	int i = 0;
-	while (1) {
-		acquire_mutex(&mtx);
-		printk("hi! bar [%d]\n", i);
-		release_mutex(&mtx);
 
-		wait(1000);
-		i++;
-	}
+void add_template_task(const char* name, uint16_t prio, uint32_t timer)
+{
+	struct thread_attr atr = {
+		.name = name,
+		.priority = prio,
+		.stack_size = 0x400
+	};
+
+	struct task_param *param = malloc(sizeof(struct task_param));
+
+	param->str = name;
+	param->timer = timer;
+
+	thread_create(&task, param, &atr);
 }
 
 static int ready = 0;
@@ -41,24 +53,19 @@ int main(void){
 		sched_init();
 		init_mutex(&mtx, "mtx_test");
 
-		struct thread_attr atr = {
-			.name = "task1",
-			.priority = prio_def,
-			.stack_size = 0x400
-		};
-		atr.priority = prio_high;
-		thread_create(&task2, NULL, &atr);
-
-		atr.name = "task2";
-		atr.priority = prio_max;
-		thread_create(&task3, NULL, &atr);
+		add_template_task("foo", 	prio_def, 100);
+		add_template_task("bar", 	prio_low, 250);
+		// add_template_task("foobar", prio_max, 500);
 
 		ready = 1;
+		__SEV();
 	}
 	else {
 		printk("core 1 running ...\n");
-		while (1)
-			bs_wait(1);
+		while (ready != 1)
+			__WFE();
+		
+		busy_wait_at_least_cycles(100);
 	}
 
 	start_sched();

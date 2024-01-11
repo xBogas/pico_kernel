@@ -36,3 +36,22 @@ context_switch:
 	ldr		r0, =0xFFFFFFFD // EXC_RETURN_THREAD
 	cpsie	i
 	bx		r0				// exit interrupt
+
+
+// must ignore current state of registers and execute a jump
+// r0 = thread to run stack pointer
+.thumb_func
+.global sched_jump
+.type sched_jump, %function
+sched_jump:
+	adds	r0, r0, #16		// adjust addr
+	ldmia	r0!,{r4-r7}		// restore registers r8 .. r11	
+	mov		r8, r4
+	mov		r9, r5
+	mov 	r10, r6
+	mov		r11, r7
+	msr		psp, r0
+	subs	r0, r0, #32		// adjust addr
+	ldmia	r0!, {r4-r7}	// restore registers r4 .. r7
+	ldr		r0, =0xFFFFFFFD // EXC_RETURN_THREAD
+	bx		r0				// exit interrupt

@@ -57,6 +57,12 @@ void
 #endif
 
 static struct spinlock print;
+static volatile int panicked = 0; 
+
+void panic_terminal()
+{
+	panicked = 1;
+}
 
 void term_init(void)
 {
@@ -73,11 +79,11 @@ void term_init(void)
 #endif
 }
 
-void vprintk(const char *fmt, va_list ap);
-static void print_str(char *str);
-static void print_hex(uint32_t i);
-static void print_int(int i);
-static void c_put(char c);
+void vprintk(const char *fmt, va_list ap, int ppanic);
+static void print_str(char *str, int ppanic);
+static void print_hex(uint32_t i, int ppanic);
+static void print_int(int i, int ppanic);
+static void c_put(char c, int ppanic);
 
 void panic_unsupported(void)
 {
@@ -89,14 +95,15 @@ void panic_unsupported(void)
 void panic(const char *format, ...)
 {
 	// force unlock print lock
-	if (holding(&print))
-		release_lock(&print);
-
+	release_lock(&print);
+	acquire_lock(&print);
     printk("PANIC!: ");
     va_list args;
     va_start(args, format);
-    vprintk(format, args);
+    vprintk(format, args, 0);
     va_end(args);
+	printk("\n");
+	panicked = 1;
 	exit(1);
 }
 
@@ -107,7 +114,7 @@ void printk(const char *fmt, ...)
 
 	va_list ap;
 	va_start(ap, fmt);
-	vprintk(fmt, ap);
+	vprintk(fmt, ap, panicked);
 	va_end(ap);
 
 #if KERNEL_CONSOLE_USB
@@ -120,47 +127,58 @@ void printk(const char *fmt, ...)
 }
 
 
-void vprintk(const char *fmt, va_list ap)
+void vprintk(const char *fmt, va_list ap, int ppanic)
 {
-	// if (!__get_current_exception())
-	// 	acquire_lock(&print);
+	if (!__get_current_exception())
+		acquire_lock(&print);
 
 	while (*fmt != '\0') {
 		if (*fmt != '%') {
-			c_put(*fmt++);
+			c_put(*fmt++, ppanic);
 			continue;
 		}
 
 		switch (*(++fmt)) {
 		case 'd':
-			print_int(va_arg(ap, int));
+			print_int(va_arg(ap, int), ppanic);
 			break;
 		case 'x':
-			print_hex(va_arg(ap, int));
+			print_hex(va_arg(ap, int), ppanic);
 			break;
 		case 's':
-			print_str(va_arg(ap, char *));
+			print_str(va_arg(ap, char *), ppanic);
 			break;
 		case 'p':
-			print_hex((uint32_t)va_arg(ap, uint32_t *));
+			print_hex((uint32_t)va_arg(ap, uint32_t *), ppanic);
 			break;
 		case 'c':
-			c_put(va_arg(ap, int));
+			c_put(va_arg(ap, int), ppanic);
 			break;
 		default: // not implemented
-			c_put('%');
-			c_put(*fmt);
+			c_put('%', ppanic);
+			c_put(*fmt, ppanic);
 			break;
 		}
 		fmt++;
 	}
 
-	// if (!__get_current_exception())
-	// 	release_lock(&print);
+	if (!__get_current_exception())
+		release_lock(&print);
 }
 
-static void c_put(char c)
+void force_printk(const char *str, ...)
 {
+	va_list ap;
+	va_start(ap, str);
+	vprintk(str, ap, 0);
+	va_end(ap);
+}
+
+static void c_put(char c, int ppanic)
+{
+	if (unlikely(ppanic))
+		while (1);
+	
 	if (unlikely(c == '\n')){
 		c_write('\r');
 		c_write('\n');
@@ -171,14 +189,14 @@ static void c_put(char c)
 
 
 
-static void print_int(int i)
+static void print_int(int i, int ppanic)
 {
 	char buf[16];
 	int len = 0;
 	int neg = 0;
 
 	if (i == 0) {
-		c_put('0');
+		c_put('0', ppanic);
 		return;
 	}
 
@@ -193,22 +211,22 @@ static void print_int(int i)
 	}
 
 	if (neg)
-		c_put('-');
+		c_put('-', ppanic);
 
 	while (len > 0)
-		c_put(buf[--len]);
+		c_put(buf[--len], ppanic);
 }
 
-static void print_hex(uint32_t i)
+static void print_hex(uint32_t i, int ppanic)
 {
-	c_put('0');
-	c_put('x');
+	c_put('0', ppanic);
+	c_put('x', ppanic);
 
 	char buf[16];
 	int len = 0;
 
 	if (i == 0) {
-		c_put('0');
+		c_put('0', ppanic);
 		return;
 	}
 
@@ -222,14 +240,14 @@ static void print_hex(uint32_t i)
 	}
 
 	while (len > 0)
-		c_put(buf[--len]);
+		c_put(buf[--len], ppanic);
 }
 
-static void print_str(char *str)
+static void print_str(char *str, int ppanic)
 {
 	if (!str)
 		str = "(null)";
 
 	while (*str != '\0')
-		c_put(*str++);
+		c_put(*str++, ppanic);
 }

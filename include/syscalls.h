@@ -18,6 +18,7 @@ void syscall_handler(uint32_t *args);
 
 
 void sys_switch(void *);
+void sys_sched(uint32_t);
 
 #endif
 
