@@ -10,6 +10,7 @@ struct task_param
 {
 	const char *str;
 	uint32_t timer;
+	uint32_t timer_busy;
 };
 
 
@@ -23,12 +24,14 @@ void task(void *data)
 		printk("hi! %s [%d] from %d\n", str, i++, cpu_id());
 		release_mutex(&mtx);
 
+		bs_wait(param->timer_busy);
+	
 		wait(param->timer);
 	}
 }
 
 
-void add_template_task(const char* name, uint16_t prio, uint32_t timer)
+void add_template_task(const char* name, uint16_t prio, uint32_t timer, uint32_t timer_busy)
 {
 	struct thread_attr atr = {
 		.name = name,
@@ -40,6 +43,7 @@ void add_template_task(const char* name, uint16_t prio, uint32_t timer)
 
 	param->str = name;
 	param->timer = timer;
+	param->timer_busy = timer_busy;
 
 	thread_create(&task, param, &atr);
 }
@@ -53,9 +57,9 @@ int main(void){
 		sched_init();
 		init_mutex(&mtx, "mtx_test");
 
-		add_template_task("foo", 	prio_def, 100);
-		add_template_task("bar", 	prio_low, 250);
-		// add_template_task("foobar", prio_max, 500);
+		add_template_task("foo", 	prio_def, 50, 100); // Comment to show wake up call
+		add_template_task("bar", 	prio_low, 50, 300);
+		add_template_task("foobar", prio_max, 50, 20);
 
 		ready = 1;
 		__SEV();
@@ -65,7 +69,6 @@ int main(void){
 		while (ready != 1)
 			__WFE();
 		
-		busy_wait_at_least_cycles(100);
 	}
 
 	start_sched();

@@ -16,6 +16,7 @@ enum th_state {
 };
 
 enum th_prio {
+	prio_idle,
 	prio_low,
 	prio_def,
 	prio_high,

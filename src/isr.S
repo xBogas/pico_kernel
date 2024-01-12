@@ -70,35 +70,23 @@ invalid_syscall:
 	ldr 	r0, =isr_hardfault
 	bx 		r0
 
-
-
-.extern systick_counter
-.extern pre_switch
+.extern sched_core1
+.extern sched_core0
 
 .syntax unified
-.global isr_systick
-.type isr_systick, %function
-isr_systick:
-@ 	ldr		r0, =systick_counter
-@ 	ldr		r1, [r0, #0]
-@ 	adds	r1, #1					// increment systick counter
-@ 	cmp		r1, #10					// check if 10 ticks have passed
-@ 	bgt		prepare_swap
-@ 	str		r1, [r0, #0]			// store value
-@ 	bx		lr
+.global isr_pendsv
+.type isr_pendsv, %function
+isr_pendsv:
+	ldr 	r0, =0xd0000000			// read cpu id
+	ldr 	r1, [r0, #0]
+	cmp 	r1, #0
+	beq 	swap_core_0
+swap_core_1:
+	ldr 	r0, =sched_core1
+	ldr 	r1, =context_switch
+	bx 		r1
 
-@ prepare_swap:
-@ 	movs	r1, #0
-@ 	str		r1, [r0, #0]			// reset systick counter
-	mrs		r3, psp					// get stack pointer
-	ldr 	r1, =0xfffffc00			// ~(PAGE_SIZE - 1)
-	ands	r3, r3, r1				// round down to nearest page
-	mov 	r0, r3
-	bl 		pre_switch				// call pre_switch
-	cmp		r0, #0					// check if context switch is needed
-	bne		do_switch
-	ldr		r0, =0xFFFFFFFD // EXC_RETURN_THREAD
-	bx		r0
-
-do_switch:
-	bl 		context_switch
+swap_core_0:
+	ldr 	r0, =sched_core0
+	ldr 	r1, =context_switch
+	bx 		r1

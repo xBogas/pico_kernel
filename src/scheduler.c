@@ -104,7 +104,7 @@ void sched_init(void)
 	init_lock(&sched.lock, "scheduler");
 	struct thread_attr atr = {
 		.name = "idle_core0",
-		.priority = prio_low,
+		.priority = prio_idle,
 		.stack_size = PAGE_SIZE
 	};
 
@@ -116,12 +116,18 @@ void sched_init(void)
 	atr.name = "idle_core1";
 	thread_create(idle_thread, &idle_core1, &atr);
 	idle_core1 = pop_th();
-
 }
 
-// ask scheduler for next thread to run!
+
+static struct thread_handle *get_idle(void)
+{
+	return cpu_id() == 0 ? idle_core0 : idle_core1;
+}
+
+
+// ask scheduler for next thread to run with higher priority than prio
 // is thread safe
-static struct thread_handle *get_runnable(void)
+static struct thread_handle *get_runnable(uint16_t prio)
 {
 	struct thread_handle *th;
 
@@ -129,7 +135,7 @@ static struct thread_handle *get_runnable(void)
 	struct next *tmp = sched.first;
 	while (tmp) {
 		th = tmp->th;
-		if (th->state == Ready) {
+		if ((th->state == Ready) && (th->priority > prio)) {
 			th->state = Running;
 			release_lock(&sched.lock);
 			return th;
@@ -173,14 +179,17 @@ uint32_t sched_add_thread(struct thread_handle* th)
 	#define THREAD_STATUS		UNPRIV_TH
 #endif
 
+#define trig_pendsv()		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk
+
 void start_sched(void)
 {
 	if (sched_runtime())
 		return;
 
 	NVIC_SetPriority(PendSV_IRQn, 0xff);
-	NVIC_SetPriority(SysTick_IRQn, 0x02); 		// due to irq overlaping
-	NVIC_SetPriority(TIMER_IRQ_3_IRQn, 0x00);
+	NVIC_SetPriority(SVCall_IRQn, 0xff);
+	NVIC_SetPriority(SysTick_IRQn, 0x00); 		// due to irq overlaping
+	NVIC_SetPriority(TIMER_IRQ_3_IRQn, 0x0f);
 
 	systick_hw->csr = 0;
 	systick_hw->rvr = SYS_TICK;
@@ -188,48 +197,66 @@ void start_sched(void)
 	systick_hw->csr = 0b0111;
 
 	__ISB();
-	struct thread_handle *run = get_runnable();
+	struct thread_handle *run = get_runnable(prio_idle);
 	if (!run)
 		panic("no runnable threads");
 
 	sys_sched(run->stack_ptr);
 }
 
-
-static struct {
+struct thread_switch {
 	struct thread_handle *run;
 	struct thread_handle *next;
-} sched_core0;
+};
 
-static struct {
-	struct thread_handle *run;
-	struct thread_handle *next;
-} sched_core1;
-
-uint32_t systick_counter = 0;
+struct thread_switch sched_core0;
+struct thread_switch sched_core1;
 
 
-void* pre_switch(struct thread_handle *running)
+void* pre_switch(void)
 {
-	if (cpu_id() != 0)
-	{
-		sched_core1.run = running;
-		sched_core1.next = get_runnable();
-		if (sched_core1.run == sched_core1.next) // both are idle threads
+	struct thread_handle *running = mythread();
+	struct thread_handle *next = get_runnable(running->priority);
+
+	if (cpu_id() != 0) {
+
+		if (next == idle_core1)
 			return NULL;
+
+		if (next == running)
+			return NULL;
+
+		// printk("core1 isr %s -> %s\n", running->name, next->name);
+
+		sched_core1.run = running;
+		sched_core1.next = next;
 
 		running->state = Ready;
 		return &sched_core1;
 	}
 
-	sched_core0.run = running;
-	sched_core0.next = get_runnable();
-	if (sched_core0.run == sched_core0.next) // both are idle threads
+	if (next == idle_core0)
 		return NULL;
+
+	if (next == running)
+		return NULL;
+
+	// printk("core0 isr %s -> %s\n", running->name, next->name);
+
+	sched_core0.run = running;
+	sched_core0.next = next;
 
 	running->state = Ready;
 	return &sched_core0;
 }
+
+void isr_systick(void)
+{
+	void *ptr = pre_switch();
+	if (ptr)
+		trig_pendsv();
+}
+
 
 // check if sched started running 
 int sched_runtime(void)
@@ -242,25 +269,30 @@ extern void context_switch(void *ptr);
 static void scheduler(struct thread_handle *running, struct thread_handle *next)
 {
 	if (unlikely(running->state == Running))
-		panic("scheduler called on - thread running");
+		return;
 
 	if (unlikely(running != mythread()))
 		panic("thread mismatch");
 
 	if (!next) // next is NULL get a runnable thread
-		next = get_runnable();
+		next = get_runnable(prio_idle);
+
+	if (running == next)
+		return;
 
 	if (cpu_id() != 0)
 	{
 		sched_core1.run = running;
 		sched_core1.next = next;
 
+		// printk("core1 scheduling %s -> %s\n", running->name, next->name);
 		sys_switch(&sched_core1);
 		return;
 	}
 
 	sched_core0.run = running;
 	sched_core0.next = next;
+	// printk("core0 scheduling %s -> %s\n", running->name, next->name);
 	sys_switch(&sched_core0);
 }
 
@@ -334,12 +366,12 @@ static struct thread_handle *wake_blocked(struct mutex *mtx, uint16_t prio)
 	{
 		lst = (struct next *)mtx->blocked;
 		th = lst->th;
-		th->state = Ready;
 
 		if(th->priority > prio) {
 			max = lst->th;
 			prio = max->priority;
-		}
+		} else 
+			th->state = Ready;
 
 		mtx->blocked = lst->next;
 		free(lst);
@@ -369,12 +401,18 @@ void wake_up(struct mutex *mtx)
 	if (!th)
 		return;
 
-	// run->state = Ready;
+	if (th->state == Running)
+		return;
 
-	// release_lock(&mtx->sp_lk);
+	run->state = Blocked;
+	run->obj = mtx;
+	add_blocked(mtx, run);
+
+	th->state = Running;
+	release_lock(&mtx->sp_lk);
 
 	printk("waking up %s\n", th->name);
-	// scheduler(run, th);
+	scheduler(run, th);
 
-	// acquire_lock(&mtx->sp_lk);
+	acquire_lock(&mtx->sp_lk);
 }
