@@ -51,7 +51,8 @@ static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle 
 	thread_exit(th);
 }
 
-//! This is only for memory allocation without mpu
+//! This is for memory allocation without mpu
+
 int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr *attr) {
 	if (!thread_fn)
 		return -1;
