@@ -24,14 +24,21 @@ struct stack_frame {
 };
 
 
-// TODO:
+// TODO remove from scheduler
 static void thread_exit(struct thread_handle *th)
 {
 	printk("performing cleanup for thread\n");
-	free(th);
+	k_free(th);
 	return;
 }
 
+/**
+ * @brief Thread entry point
+ * 
+ * @param entry thread function
+ * @param arg argument for thread function
+ * @param th thread handle
+ */
 static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle *th)
 {
 	if (!entry || !th)
@@ -44,9 +51,7 @@ static void thread_entry(void (*entry)(void *), void *arg, struct thread_handle 
 	thread_exit(th);
 }
 
-/**
- * This is only for memory allocation without mpu
-*/
+//! This is only for memory allocation without mpu
 int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr *attr) {
 	if (!thread_fn)
 		return -1;
@@ -86,6 +91,7 @@ int thread_create(void (*thread_fn)(void *data), void *data, struct thread_attr 
 	frame->r5 	= 5;
 	frame->r6 	= 6;
 	frame->r7 	= 7;
+	// to be consumed by sched_jump
 	frame->r0 	= (uint32_t)thread_fn;
 	frame->r1 	= (uint32_t)data;
 	frame->r2 	= (uint32_t)th;

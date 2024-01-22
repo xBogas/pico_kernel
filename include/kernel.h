@@ -16,13 +16,18 @@ void __attribute__((noreturn)) panic_unsupported(void);
 
 void __attribute__((noreturn)) panic(const char *fmt, ...);
 
+// terminate execution
+// if status is 0, reset
+// else enter bootsel mode (wait for code upload)
 void __attribute__((noreturn)) exit(int status);
 
+// check if software is running in privileged mode
 static inline uint32_t is_privileged(void)
 {
 	return (__get_current_exception()) || !(__get_CONTROL() & 1);
 }
 
+// return current core number
 #define cpu_id()		get_core_num()
 
 #endif

@@ -4,9 +4,6 @@
 #include "hardware/structs/sio.h"
 #include "hardware/sync.h"
 
-#define BASE_SPINLOCK 		SIO_BASE + SIO_SPINLOCK0_OFFSET
-#define SPINLOCK_STATE 		SIO_BASE + SIO_SPINLOCK_ST_OFFSET
-
 
 void init_lock(struct spinlock *lock, const char *name)
 {

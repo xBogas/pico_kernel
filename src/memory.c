@@ -1,3 +1,5 @@
+// This was a mpu implementation that was never finished
+// It could be used to implement process isolation
 #ifdef KERNEL_ENABLE_MPU
 
 #include "memory.h"

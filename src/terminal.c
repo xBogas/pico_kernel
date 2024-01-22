@@ -41,11 +41,12 @@ static struct spinlock _usb_task;
 
 static void init_usb(void)
 {
-	//tusb_init();
+	// tusb_init();
 	stdio_usb_init();
 	init_lock(&_usb_task, "usb_task_lock");
 }
 
+// replace spinlock with mutex
 void usb_task(void)
 {
 	acquire_lock(&_usb_task);
@@ -62,6 +63,7 @@ static volatile int panicked = 0;
 void panic_terminal()
 {
 	panicked = 1;
+	acquire_lock(&print); // only isr can print know !!but panic will release it!!
 }
 
 void term_init(void)
@@ -118,6 +120,7 @@ void printk(const char *fmt, ...)
 	va_end(ap);
 
 #if KERNEL_CONSOLE_USB
+	// To allow this being called from an ISR such as hardfault
 	if((__get_current_exception() != 0) && NVIC_GetPendingIRQ(USBCTRL_IRQ)) {
 		irq_handler_t irq = irq_get_vtable_handler(USBCTRL_IRQ);
 		irq();
@@ -166,6 +169,7 @@ void vprintk(const char *fmt, va_list ap, int ppanic)
 		release_lock(&print);
 }
 
+// this should be changed to a better solution
 void force_printk(const char *str, ...)
 {
 	va_list ap;
@@ -178,7 +182,7 @@ static void c_put(char c, int ppanic)
 {
 	if (unlikely(ppanic))
 		while (1);
-	
+
 	if (unlikely(c == '\n')){
 		c_write('\r');
 		c_write('\n');

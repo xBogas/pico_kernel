@@ -24,10 +24,22 @@ if(PICO_BARE_METAL)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_float)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_mem_ops)
 
-
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_rand)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/cmsis)
 
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_cxx_options)
 	pico_add_subdirectory(${DIR_RP2_COMMON}/pico_standard_link)
+
+	# link libraries with wrappers and need to be included in the project
+	target_link_libraries(${PROJECT_NAME} 
+							pico_bit_ops
+							pico_divider
+							pico_time
+							pico_double
+							pico_int64_ops
+							pico_int64_ops
+							pico_float
+							pico_float
+							cmsis_core
+							)
 endif()

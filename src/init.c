@@ -1,7 +1,9 @@
 #include "terminal.h"
 #include "sio_fifo.h"
+#include <string.h>
 
 #include "pico/bootrom.h"
+#include "pico/time.h"
 
 // hardware registers
 #include "hardware/resets.h"
@@ -12,23 +14,22 @@
 #include "hardware/sync.h"
 #include "hardware/structs/padsbank0.h"
 
-//#include "pico/mutex.h"
-#include "pico/time.h"
 
+// main function
 extern int main();
-void __attribute__((noreturn)) exit(int status);
-void launch_core1(void);
 
+// start core 1
+static void launch_core1(void);
+
+// initialize kernel
+// launch core 1 and initialize terminal
+static void kernel_entry(void);
+
+// NVIC interrupt function pointers - pulled from linker script
 uint32_t __attribute__((section(".ram_vector_table"))) ram_vector_table[48];
 
-static void kernel_entry(void)
-{
-    term_init();
-    printk("kernel is booting\n");
-	launch_core1();
-}
-
-// entry point
+// entry point from linker script
+// peripheral reset
 void runtime_init(void)
 {
 	// Reset all peripherals to put system into a known state,
@@ -56,7 +57,7 @@ void runtime_init(void)
             RESETS_RESET_USBCTRL_BITS
     ));
 
-	// call preinit functions
+	// call __pre_init functions
 	extern void (*__preinit_array_start)(void);
     extern void (*__preinit_array_end)(void);
     for (void (**p)(void) = &__preinit_array_start; p < &__preinit_array_end; ++p) {
@@ -66,12 +67,12 @@ void runtime_init(void)
 	clocks_init();
     unreset_block_wait(RESETS_RESET_BITS);
 
-    // reset pads
+    // reset gpio (26-29 are internal gpio - this enables them) 
     padsbank0_hw_t *padsbank0_hw_clear = (padsbank0_hw_t *)hw_clear_alias_untyped(padsbank0_hw);
     padsbank0_hw_clear->io[26] = padsbank0_hw_clear->io[27] = PADS_BANK0_GPIO0_IE_BITS;
     padsbank0_hw_clear->io[28] = padsbank0_hw_clear->io[29] = PADS_BANK0_GPIO0_IE_BITS;
 
-    __builtin_memcpy(ram_vector_table, (uint32_t *) scb_hw->vtor, sizeof(ram_vector_table));
+    memcpy(ram_vector_table, (uint32_t *) scb_hw->vtor, sizeof(ram_vector_table));
     scb_hw->vtor = (uintptr_t) ram_vector_table;
 
     spin_locks_reset();
@@ -92,6 +93,12 @@ void runtime_init(void)
     kernel_entry();
 }
 
+static void kernel_entry(void)
+{
+    term_init();
+    printk("kernel is booting\n");
+	launch_core1();
+}
 
 void __attribute__((noreturn)) exit(int status)
 {
@@ -141,7 +148,7 @@ void launch_core1(void)
     uint32_t *stack_ptr = (uint32_t *) (stack + sizeof(core1_stack));
 
     // memset is replaced by a ROM function
-    __builtin_memset(core1_stack, 0, sizeof(core1_stack)); // dont allow to be optimized out
+    memset(core1_stack, 0, sizeof(core1_stack)); // dont allow to be optimized out
 
     stack_ptr -= 2;
     stack_ptr[0] = (uint32_t) stack;

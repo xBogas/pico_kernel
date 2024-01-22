@@ -12,11 +12,10 @@
 // initialize scheduler
 void sched_init(void);
 
-// add thread_handle
+// add thread_handle to threads list
 uint32_t sched_add_thread(struct thread_handle* th);
 
 // start the scheduler
-// for now just loop through the threads
 void start_sched(void);
 
 // get current thread
@@ -34,9 +33,10 @@ static __force_inline struct thread_handle *mythread(void)
 	return (struct thread_handle *)(PG_ROUND_DOWN(ptr));
 }
 
+// yield thread execution for ms milliseconds
 void yield(struct thread_handle *th, uint32_t ms);
 
-// sleep thread
+// send thread to sleep
 void sleep(struct mutex *mtx);
 
 // wake up threads sleeping on mutex

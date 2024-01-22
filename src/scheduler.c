@@ -5,29 +5,34 @@
 #include "hardware/structs/systick.h"
 #include "hardware/timer.h"
 
+// thread list
 struct next {
 	struct thread_handle* th;
 	struct next *next;
 };
 
-// priority queue
 static struct {
-	struct spinlock lock;
-	struct next *first;
-	int size;
-	uint32_t id;
+	struct spinlock lock;	// spinlock for protection
+	struct next *first;		// thread list
+	int size;				// number of threads (not used)
+	uint32_t id;			// next thread id
 } sched;
 
-
-void add_on_node(struct next *node, void *ptr)
+/**
+ * @brief Add thread list element 
+ * 
+ * @param node 
+ * @param ptr 
+ */
+static void add_on_node(struct next *node, struct thread_handle *ptr)
 {
 	struct next *tmp = malloc(sizeof(struct next));
-	tmp->th = (struct thread_handle *)ptr;
+	tmp->th = ptr;
 	tmp->next = node->next;
 	node->next = tmp;
 }
 
-void push_th(struct thread_handle *th)
+static void push_th(struct thread_handle *th)
 {
 	acquire_lock(&sched.lock);
 	
@@ -69,7 +74,8 @@ void push_th(struct thread_handle *th)
 	panic("failed to push thread on priority queue");
 }
 
-struct thread_handle *pop_th(void)
+
+static struct thread_handle *pop_th(void)
 {
 	acquire_lock(&sched.lock);
 	if (!sched.first) {
@@ -93,10 +99,13 @@ struct thread_handle *pop_th(void)
 static struct thread_handle *idle_core0;
 static struct thread_handle *idle_core1;
 
+// Idle thread function
+// enter low power mode
 static void idle_thread(void *arg)
 {
-	while (1)
+	while (1) {
 		__WFI();
+	}
 }
 
 void sched_init(void)
@@ -126,6 +135,7 @@ static struct thread_handle *get_idle(void)
 
 
 // ask scheduler for next thread to run with higher priority than prio
+// if no thread is found return idle thread
 // is thread safe
 static struct thread_handle *get_runnable(uint16_t prio)
 {
@@ -149,11 +159,10 @@ static struct thread_handle *get_runnable(uint16_t prio)
 }
 
 
-// TODO:
+// //TODO:
 // static void preempt(struct thread_handle *next, struct thread_handle *running)
 // {
-// 	if( next->priority < running->priority)
-// 		next->priority = running->priority;
+
 // }
 
 
@@ -175,20 +184,23 @@ uint32_t sched_add_thread(struct thread_handle* th)
 
 #ifdef USE_PRIV_THREADS
 	#define THREAD_STATUS		PRIV_TH
+	#pragma message "using privileged threads"
 #else
 	#define THREAD_STATUS		UNPRIV_TH
 #endif
 
+// trigger pendSV exception
 #define trig_pendsv()		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk
 
 void start_sched(void)
 {
-	if (sched_runtime())
-		return;
+	// if (sched_runtime()) // not implemented
+	// 	return;
 
+	// Set NVIC priorites
 	NVIC_SetPriority(PendSV_IRQn, 0xff);
-	NVIC_SetPriority(SVCall_IRQn, 0xff);
-	NVIC_SetPriority(SysTick_IRQn, 0x00); 		// due to irq overlaping
+	NVIC_SetPriority(SVCall_IRQn, 0x00);		// this could be changed to a better value ?
+	NVIC_SetPriority(SysTick_IRQn, 0x00);		// this could be changed to a better value ?
 	NVIC_SetPriority(TIMER_IRQ_3_IRQn, 0x0f);
 
 	systick_hw->csr = 0;
@@ -204,6 +216,9 @@ void start_sched(void)
 	sys_sched(run->stack_ptr);
 }
 
+// thread switch struct
+// dereferencing each pointer
+// will get each thread stack pointer
 struct thread_switch {
 	struct thread_handle *run;
 	struct thread_handle *next;
@@ -212,8 +227,8 @@ struct thread_switch {
 struct thread_switch sched_core0;
 struct thread_switch sched_core1;
 
-
-void* pre_switch(void)
+// check if context switch is needed
+static void* pre_switch(void)
 {
 	struct thread_handle *running = mythread();
 	struct thread_handle *next = get_runnable(running->priority);
@@ -225,8 +240,6 @@ void* pre_switch(void)
 
 		if (next == running)
 			return NULL;
-
-		// printk("core1 isr %s -> %s\n", running->name, next->name);
 
 		sched_core1.run = running;
 		sched_core1.next = next;
@@ -241,8 +254,6 @@ void* pre_switch(void)
 	if (next == running)
 		return NULL;
 
-	// printk("core0 isr %s -> %s\n", running->name, next->name);
-
 	sched_core0.run = running;
 	sched_core0.next = next;
 
@@ -250,6 +261,7 @@ void* pre_switch(void)
 	return &sched_core0;
 }
 
+// Systick exception handler
 void isr_systick(void)
 {
 	void *ptr = pre_switch();
@@ -257,15 +269,8 @@ void isr_systick(void)
 		trig_pendsv();
 }
 
-
-// check if sched started running 
-int sched_runtime(void)
-{
-	return 0;
-}
-
-extern void context_switch(void *ptr);
-
+// reschedule current running thread
+// if next is NULL get a runnable thread
 static void scheduler(struct thread_handle *running, struct thread_handle *next)
 {
 	if (unlikely(running->state == Running))
@@ -308,7 +313,7 @@ static void add_blocked(struct mutex *mtx, struct thread_handle *th)
 
 #include "pico/time.h"
 
-
+// callback to set thread ready to run
 static int64_t set_ready(alarm_id_t id, void *data)
 {
 	struct thread_handle *th = (struct thread_handle *)data;
@@ -316,7 +321,7 @@ static int64_t set_ready(alarm_id_t id, void *data)
 	return 0;
 }
 
-
+// send thread to sleep for ms milliseconds
 void yield(struct thread_handle *th, uint32_t ms)
 {
 	th->state = Waiting;
@@ -368,6 +373,8 @@ static struct thread_handle *wake_blocked(struct mutex *mtx, uint16_t prio)
 		th = lst->th;
 
 		if(th->priority > prio) {
+			if (max)
+				max->state = Ready;
 			max = lst->th;
 			prio = max->priority;
 		} else 

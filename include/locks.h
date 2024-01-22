@@ -4,8 +4,7 @@
 #include "kernel.h"
 
 // Spinlock
-struct spinlock
-{
+struct spinlock {
 	// using hw spinlock
 	volatile uint32_t *lock;
 	uint32_t irq;
@@ -50,19 +49,35 @@ int holding(struct spinlock *lock);
 
 #define MUTEX_UNOWNED NULL
 
-struct mutex
-{
+struct mutex {
 	struct spinlock sp_lk;
 	struct thread_handle *owner;
 	void *blocked;
 	uint8_t lock;
 };
 
+/**
+ * @brief Initialize a mutex
+ * 
+ * @param mtx 
+ * @param name 
+ */
 void init_mutex(struct mutex *mtx, const char *name);
 
-
+/**
+ * @brief Acquire a mutex.
+ * Send thread to sleep if mutex is locked.
+ * 
+ * @param mtx 
+ */
 void acquire_mutex(struct mutex *mtx);
 
-
+/**
+ * @brief Release a mutex.
+ * Wake up threads sleeping on mutex.
+ * Schedule if any thread with higher priority was woken up.
+ * 
+ * @param mtx 
+ */
 void release_mutex(struct mutex *mtx);
 #endif

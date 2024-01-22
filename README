@@ -1,0 +1,29 @@
+Pico kernel
+
+Inside docs folder contains The Definitive Guide to ARM Cortex -M0 and Cortex-M0+ Processors. With useful information about Cortex-M0+.
+The RP2040 datasheet also provides information about the SoC. 
+
+The Getting started with Raspberry Pi Pico - provides information on how to debug and the setup required to use Picoprobe alongside VSCode.
+It will require the Cortex-Debug extension as described. https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug
+
+Dependencies
+
+- cmake version 3.15
+- python3 interpreter
+- arm-none-eabi-gcc
+- arm-none-eabi-gdb (gdb-multiarch may also work)
+
+- openocd - compatible with pi pico
+
+Raspberry Pi Documentation
+
+https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html
+
+
+To compile
+
+cd build
+cmake ..
+make -j4
+
+This will create the file firmware.uf2 used to manually flash the board.

@@ -55,3 +55,5 @@ sched_jump:
 	ldmia	r0!, {r4-r7}	// restore registers r4 .. r7
 	ldr		r0, =0xFFFFFFFD // EXC_RETURN_THREAD
 	bx		r0				// exit interrupt
+
+//TODO add idle function instead of thread

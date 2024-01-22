@@ -6,18 +6,21 @@
 #ifndef __ASSEMBLER__
 
 #include "kernel.h"
-#include "locks.h"
-
 
 /**
- * @brief process syscall
+ * @brief SVC call to perform 
+ * context switch ID#0
  * 
- * @param args register params
+ * Pass stack pointer of current thread and next thread
+ * (struct thread_switch)
  */
-void syscall_handler(uint32_t *args);
-
-
 void sys_switch(void *);
+
+/**
+ * @brief SVC call to perform 
+ * initial thread jump ID#1
+ * 
+ */
 void sys_sched(uint32_t);
 
 #endif

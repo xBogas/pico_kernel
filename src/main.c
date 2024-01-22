@@ -4,15 +4,13 @@
 #include "memory.h"
 #include "thread.h"
 
-static struct mutex mtx;
-
-struct task_param
-{
+struct task_param {
 	const char *str;
 	uint32_t timer;
 	uint32_t timer_busy;
 };
 
+static struct mutex mtx;
 
 void task(void *data)
 {
@@ -21,7 +19,7 @@ void task(void *data)
 	int i = 0;
 	while (1) {
 		acquire_mutex(&mtx);
-		printk("hi! %s [%d] from %d\n", str, i++, cpu_id());
+		printk("hi! %s [%d] from %d\n", str, i++, cpu_id()); // cpu_id may not be accurate
 		release_mutex(&mtx);
 
 		bs_wait(param->timer_busy);
@@ -49,18 +47,22 @@ void add_template_task(const char* name, uint16_t prio, uint32_t timer, uint32_t
 }
 
 static int ready = 0;
+
+// both cores jump to main after peripheral reset
 int main(void){
-	
-	if (cpu_id() == 0){
+
+	if (cpu_id() == 0) {
 		printk("core 0 entered main\n");
 		k_mem_init();
 		sched_init();
-		init_mutex(&mtx, "mtx_test");
 
-		add_template_task("foo", 	prio_def, 50, 100); // Comment to show wake up call
+		// For demonstration purposes
+		init_mutex(&mtx, "mtx_test");
+		add_template_task("foo", 	prio_def, 50, 100);
 		add_template_task("bar", 	prio_low, 50, 300);
 		add_template_task("foobar", prio_max, 50, 20);
 
+		// To synchronize
 		ready = 1;
 		__SEV();
 	}

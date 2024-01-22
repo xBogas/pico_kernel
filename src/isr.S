@@ -5,19 +5,14 @@
 
 //TODO: 
 // check for stack corruption (valid addr func)
-// check if EXC_RETURN is valid
-// check xPSR T bit
 
-// lr will have the value of EXC_RETURN
-// if 0xFFFFFFF9UL -> using msp
-// then lr+7 == 0 (overflow)
 .thumb_func
 .global isr_hardfault
 .type isr_hardfault, %function
 isr_hardfault:
-	mov		r3, lr
-	adds	r3, #7 	
-	bne.n	stack_is_psp
+	mov		r3, lr					// lr will have the value of EXC_RETURN
+	adds	r3, #7 					// if 0xFFFFFFF9UL -> using msp
+	bne.n	stack_is_psp			// then lr+7 == 0 (overflow)
 	mrs		r0, msp
 enter_c:
 	ldr		r2, =hardfault_handler
@@ -31,7 +26,7 @@ stack_is_psp:
 .thumb_func
 .global isr_svcall
 .type isr_svcall, %function
-isr_svcall:
+isr_svcall:							// get stack pointer and jump to syscall_handler
 	mov		r3, lr
 	adds	r3, #7
 	cmp		r3, #0 	
@@ -73,6 +68,12 @@ invalid_syscall:
 .extern sched_core1
 .extern sched_core0
 
+//? push sched_core to msp
+//? then pop sched_core to be used
+//? no need to get cpu id
+
+//! maybe not work if systick is called twice 
+//! before this isr is called
 .syntax unified
 .global isr_pendsv
 .type isr_pendsv, %function
@@ -80,7 +81,7 @@ isr_pendsv:
 	ldr 	r0, =0xd0000000			// read cpu id
 	ldr 	r1, [r0, #0]
 	cmp 	r1, #0
-	beq 	swap_core_0
+	beq 	swap_core_0				// process context switch for each core
 swap_core_1:
 	ldr 	r0, =sched_core1
 	ldr 	r1, =context_switch

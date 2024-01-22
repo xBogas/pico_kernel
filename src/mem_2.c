@@ -90,7 +90,7 @@ extern void *__real_malloc(size_t size);
 
 //static struct mutex malloc_mutex;
 
-//TODO:
+//TODO: verify malloc implementation
 void *__wrap_malloc(size_t size)
 {
 	if (size == 0)
