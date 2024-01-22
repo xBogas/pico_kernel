@@ -18,12 +18,7 @@ static struct {
     uint32_t id;			// next thread id
 } sched;
 
-/**
- * @brief Add thread list element 
- * 
- * @param node 
- * @param ptr 
- */
+//  Add thread list element on node
 static void add_on_node(struct next *node, struct thread_handle *ptr)
 {
     struct next *tmp = malloc(sizeof(struct next));
@@ -32,10 +27,7 @@ static void add_on_node(struct next *node, struct thread_handle *ptr)
     node->next = tmp;
 }
 
-/**
- * @brief Push thread to sched list
- * 
- */
+// Push thread to sched list
 static void push_th(struct thread_handle *th)
 {
     acquire_lock(&sched.lock);
@@ -78,7 +70,7 @@ static void push_th(struct thread_handle *th)
     panic("failed to push thread on priority queue");
 }
 
-
+// Remove first thread from sched list
 static struct thread_handle *pop_th(void)
 {
     acquire_lock(&sched.lock);
